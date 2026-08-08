@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>rack planner · 10" mini rack</title>
+    <meta
+      name="description"
+      content="snap-to-grid planning for 10 inch mini racks — 4u, 8u and 12u, half-width bays, power and depth budgets."
+    />
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <span class="wordmark"
+          >rack<span class="dot">·</span>planner<span class="cursor"
+            >▊</span
+          ></span
+        >
+        <span class="eyebrow">10&quot; mini rack</span>
+
+        <div class="seg" id="chassis" role="group" aria-label="rack size"></div>
+
+        <span class="spacer"></span>
+
+        <button class="btn" id="undo" title="undo (cmd+z)">↶ undo</button>
+        <button class="btn" id="redo" title="redo (shift+cmd+z)">↷ redo</button>
+        <button class="btn" id="share" title="copy a link to this layout">
+          ⇗ share
+        </button>
+        <button class="btn" id="svg">↓ svg</button>
+        <button class="btn btn--go" id="png">↓ png</button>
+        <button class="btn btn--danger" id="clear">✗ clear</button>
+      </header>
+
+      <div class="cols">
+        <aside
+          class="pane pane--left"
+          id="palette"
+          aria-label="device catalog"
+        ></aside>
+
+        <main class="pane pane--stage">
+          <div class="rackwrap">
+            <div class="ruler" id="ruler" aria-hidden="true"></div>
+            <div
+              class="rack"
+              id="rack"
+              tabindex="0"
+              aria-label="rack elevation"
+            >
+              <div class="lattice"></div>
+              <div class="midline"></div>
+            </div>
+          </div>
+        </main>
+
+        <aside
+          class="pane pane--right"
+          id="inspector"
+          aria-label="inspector"
+        ></aside>
+      </div>
+
+      <footer class="helpbar">
+        <span><kbd>drag</kbd> place</span>
+        <span><kbd>click</kbd> select</span>
+        <span><kbd>↑↓</kbd> ½u</span>
+        <span><kbd>⇧↑↓</kbd> 1u</span>
+        <span><kbd>←→</kbd> bay</span>
+        <span><kbd>⌫</kbd> remove</span>
+        <span><kbd>⌘d</kbd> duplicate</span>
+        <span><kbd>⌘z</kbd> undo</span>
+      </footer>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

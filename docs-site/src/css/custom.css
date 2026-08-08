@@ -1,0 +1,72 @@
+/* stump·wtf house palette — cutesy-cyberpunk / Tron.
+   Tokens mirror themes/stumpwtf/assets/css/main.css in apps.stump.wtf so the
+   docs read as part of the same family as the planner itself. */
+
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap");
+
+:root {
+  --ifm-color-primary: #6642e0;
+  --ifm-color-primary-dark: #5a37d4;
+  --ifm-color-primary-darker: #5433c8;
+  --ifm-color-primary-darkest: #452aa5;
+  --ifm-color-primary-light: #7d56f4;
+  --ifm-color-primary-lighter: #8a67f5;
+  --ifm-color-primary-lightest: #9b7cff;
+
+  --ifm-font-family-base: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+    monospace;
+  --ifm-heading-font-family: "Space Mono", var(--ifm-font-family-base);
+  --ifm-font-family-monospace: "JetBrains Mono", ui-monospace, monospace;
+  --ifm-code-font-size: 90%;
+  --docusaurus-highlighted-code-line-bg: rgba(125, 86, 244, 0.12);
+}
+
+[data-theme="dark"] {
+  --ifm-color-primary: #9b7cff;
+  --ifm-color-primary-dark: #8a67f5;
+  --ifm-color-primary-darker: #7d56f4;
+  --ifm-color-primary-darkest: #6642e0;
+  --ifm-color-primary-light: #ac93ff;
+  --ifm-color-primary-lighter: #b8a3ff;
+  --ifm-color-primary-lightest: #c8a2ff;
+
+  --ifm-background-color: #0e0e1a;
+  --ifm-background-surface-color: #15152a;
+  --ifm-navbar-background-color: rgba(14, 14, 26, 0.9);
+  --ifm-footer-background-color: #08080f;
+  --ifm-toc-border-color: #262645;
+  --ifm-color-emphasis-300: #3a3a66;
+  --ifm-font-color-base: #c9c9e8;
+  --ifm-heading-color: #f4f4ff;
+  --docusaurus-highlighted-code-line-bg: rgba(78, 230, 255, 0.14);
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.04em;
+}
+
+/* the house voice is lowercase; headings follow it rather than title case */
+.navbar__title,
+.menu__link {
+  text-transform: lowercase;
+}
+
+[data-theme="dark"] .navbar {
+  border-bottom: 1px solid #262645;
+  backdrop-filter: blur(8px);
+}
+
+[data-theme="dark"] code {
+  background: #0a0a14;
+  border: 1px solid #262645;
+}
+
+[data-theme="dark"] table thead tr {
+  background: #15152a;
+}
+
+[data-theme="dark"] .theme-admonition {
+  border-left-width: 3px;
+}

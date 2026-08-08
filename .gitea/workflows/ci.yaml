@@ -1,0 +1,43 @@
+# The gate. Jobs stay separately named so a failure is legible from the status
+# line alone — the Actions log API 404s on this instance often enough that job
+# granularity is the only reliable signal about *what* broke.
+#
+# These call the same make targets you run locally. If CI invokes something
+# different, local green stops meaning anything.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: make test
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npx --yes prettier@3.3.3 --check 'js/**/*.js' 'test/**/*.js' 'css/*.css' index.html
+      - run: make lint
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

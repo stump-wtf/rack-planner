@@ -1,0 +1,131 @@
+# Build, scan and publish the container image, then converge the deployment.
+#
+# Push target is the StumpCloud registry: gitea.stump.rocks/stump.wtf/rack-planner
+#
+# The Gitea package MUST stay public. DUB hosts pull anonymously — there is no
+# host-side registry auth anywhere in stumpcloud/ansible, and inventing some for
+# one static site would be the wrong trade.
+#
+# conf.actions.repos in dub.yaml hardcodes owner: stumpcloud, so it cannot
+# provision this repo's REGISTRY_TOKEN — like cairn and switchboard, a stump.wtf
+# repo sets that secret by hand. Every registry step is guarded on it so the
+# workflow skips green until it exists rather than failing red on every push.
+
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  image:
+    name: build + publish image
+    runs-on: ubuntu-latest
+    env:
+      REG: ${{ secrets.REGISTRY_TOKEN }}
+      IMAGE: gitea.stump.rocks/stump.wtf/rack-planner
+    steps:
+      - name: Checkout
+        if: ${{ env.REG != '' }}
+        uses: actions/checkout@v4
+
+      - name: Set metadata
+        if: ${{ env.REG != '' }}
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{ is_default_branch }}
+            type=ref,event=branch
+            type=sha,prefix=sha-,format=short
+
+      - name: Set up QEMU
+        if: ${{ env.REG != '' }}
+        run: docker run --rm --privileged tonistiigi/binfmt --install all
+
+      - name: Set up Docker Buildx
+        if: ${{ env.REG != '' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Gitea
+        if: ${{ env.REG != '' && gitea.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: gitea.stump.rocks
+          username: joestump-agent
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Build image (amd64, for scanning)
+        if: ${{ env.REG != '' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: ${{ env.IMAGE }}:scan-${{ gitea.run_id }}
+          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
+
+      - name: Trivy image scan
+        if: ${{ env.REG != '' }}
+        uses: docker://aquasec/trivy:latest
+        with:
+          args: image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 --skip-version-check --format table ${{ env.IMAGE }}:scan-${{ gitea.run_id }}
+
+      - name: Build and push (multi-arch)
+        if: ${{ env.REG != '' && gitea.event_name != 'pull_request' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          # the fleet is a mix of amd64 boxes and arm SBCs
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max
+
+  deploy:
+    name: deploy to ie01 (ansible)
+    needs: [image]
+    # Opt-in, and inert until the repo variable DEPLOY_ON_MERGE is set to true.
+    #
+    # This also needs ie01 to have a CI deploy AppRole and SSH key, which it does
+    # NOT yet — ci-deploy-approle.yaml and ci-deploy-key.yaml have only ever been
+    # run for cloud01. Until then, merging the playbook to stumpcloud/ansible is
+    # what actually converges this service (its converge-apps lane covers it).
+    if: ${{ vars.DEPLOY_ON_MERGE == 'true' && gitea.event_name == 'push' && gitea.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    env:
+      ANSIBLE_FORCE_COLOR: "true"
+      DOCKER_TIMEOUT: 600
+      # AppRole, not a static token: a static VAULT_TOKEN in a repo secret cannot
+      # re-authenticate, dies at max-TTL, and takes every later deploy with it.
+      VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
+      VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
+    steps:
+      # No token: stumpcloud/ansible is public, and an empty GIT_AUTH_TOKEN is
+      # worse than none.
+      - name: Checkout stumpcloud/ansible (playbooks + inventory)
+        uses: actions/checkout@v4
+        with:
+          repository: stumpcloud/ansible
+          ref: main
+
+      - name: Log in to Gitea (pull the ansible-runner action image)
+        uses: docker/login-action@v3
+        with:
+          registry: gitea.stump.rocks
+          username: joestump-agent
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Deploy rack-planner to ie01
+        # v2.1.0 exactly: the first release where ssh_private_key is a real,
+        # delivered input. @v2 was not moved forward to it.
+        uses: https://gitea.stump.rocks/stumpcloud/ansible-runner@v2.1.0
+        with:
+          playbook: playbooks/services/rack-planner.yaml
+          inventory: dub.yaml
+          ssh_hosts: ie01.stump.rocks
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}

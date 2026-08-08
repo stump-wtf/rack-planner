@@ -1,0 +1,59 @@
+# Builds the Docusaurus docs (docs-site/) and publishes to Gitea Pages via Garage S3.
+# Live at: https://stump-wtf.pages.stump.rocks/rack-planner/
+#
+# garage-pages-deploy lowercases the owner and turns dots into dashes, so the
+# stump.wtf org publishes under stump-wtf.pages.stump.rocks.
+#
+# Requires repo secrets PAGES_ACCESS_KEY_ID / PAGES_SECRET_ACCESS_KEY. Those are
+# provisioned by conf.pages in stumpcloud/ansible dub.yaml — this repo needs an
+# entry under the stump.wtf user there, or the secrets set by hand.
+name: Deploy Docs to Gitea Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs-site/**"
+      - ".gitea/workflows/pages.yaml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # secrets cannot be referenced in a job-level if:, so bounce it through env —
+    # an unprovisioned repo then skips green instead of failing red
+    env:
+      PAGES_KEY: ${{ secrets.PAGES_ACCESS_KEY_ID }}
+    steps:
+      - name: Checkout
+        if: ${{ env.PAGES_KEY != '' }}
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        if: ${{ env.PAGES_KEY != '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Install dependencies
+        if: ${{ env.PAGES_KEY != '' }}
+        working-directory: docs-site
+        run: npm ci
+
+      - name: Build
+        if: ${{ env.PAGES_KEY != '' }}
+        working-directory: docs-site
+        run: npm run build
+        env:
+          SITE_URL: https://stump-wtf.pages.stump.rocks
+
+      - name: Deploy to Gitea Pages
+        if: ${{ env.PAGES_KEY != '' }}
+        uses: https://gitea.stump.rocks/stumpcloud/garage-pages-deploy@v1
+        with:
+          source_dir: docs-site/build
+          access_key_id: ${{ secrets.PAGES_ACCESS_KEY_ID }}
+          secret_access_key: ${{ secrets.PAGES_SECRET_ACCESS_KEY }}

@@ -1,0 +1,7 @@
+.DS_Store
+.cache/
+.preview.svg
+node_modules/
+docs-site/node_modules/
+docs-site/build/
+docs-site/.docusaurus/

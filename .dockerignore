@@ -1,0 +1,12 @@
+.git
+.gitea
+.github
+.claude
+docs-site
+test
+node_modules
+Makefile
+README.md
+LICENSE
+.gitignore
+.preview.svg
