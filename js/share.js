@@ -22,6 +22,10 @@ export function toWire(state) {
       it.color,
       it.row,
       it.col,
+      // index 8 appended in place rather than bumping SCHEMA: a v1 link without
+      // it still decodes (a[8] is undefined and falls back to the glyph), and
+      // older code simply ignores the extra element.
+      it.icon ?? "▪",
     ]),
   };
 }
@@ -44,6 +48,7 @@ export function fromWire(w) {
       color: String(a[5] ?? "#7D56F4"),
       row: Number(a[6]) || 0,
       col: Number(a[7]) || 0,
+      icon: a[8] ? String(a[8]).slice(0, 64) : "▪",
     })),
   };
 }

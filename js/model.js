@@ -55,7 +55,7 @@ const STOCK = [
     watts: 12,
     color: "#00F0A8",
     cat: "compute",
-    glyph: "◆",
+    icon: "si:raspberrypi",
   },
   {
     id: "pi-quad",
@@ -66,7 +66,7 @@ const STOCK = [
     watts: 40,
     color: "#00F0A8",
     cat: "compute",
-    glyph: "◆◆",
+    icon: "si:raspberrypi",
   },
   {
     id: "sbc-shelf",
@@ -77,7 +77,7 @@ const STOCK = [
     watts: 0,
     color: "#5B5B84",
     cat: "compute",
-    glyph: "▤",
+    icon: "▤",
   },
   {
     id: "mini-pc",
@@ -88,7 +88,7 @@ const STOCK = [
     watts: 45,
     color: "#7D56F4",
     cat: "compute",
-    glyph: "●",
+    icon: "●",
   },
   {
     id: "itx",
@@ -99,7 +99,7 @@ const STOCK = [
     watts: 90,
     color: "#7D56F4",
     cat: "compute",
-    glyph: "▤",
+    icon: "▤",
   },
   {
     id: "nas",
@@ -110,7 +110,7 @@ const STOCK = [
     watts: 60,
     color: "#C8A2FF",
     cat: "compute",
-    glyph: "▦",
+    icon: "▦",
   },
 
   // ── network ──────────────────────────────────────────────────────────
@@ -123,7 +123,7 @@ const STOCK = [
     watts: 10,
     color: "#4EE6FF",
     cat: "network",
-    glyph: "⇄",
+    icon: "⇄",
   },
   {
     id: "switch16",
@@ -134,7 +134,7 @@ const STOCK = [
     watts: 18,
     color: "#4EE6FF",
     cat: "network",
-    glyph: "⇄",
+    icon: "⇄",
   },
   {
     id: "patch12",
@@ -145,7 +145,7 @@ const STOCK = [
     watts: 0,
     color: "#4EE6FF",
     cat: "network",
-    glyph: "⋮⋮",
+    icon: "⋮⋮",
   },
   {
     id: "router",
@@ -156,7 +156,7 @@ const STOCK = [
     watts: 15,
     color: "#4EE6FF",
     cat: "network",
-    glyph: "⌁",
+    icon: "⌁",
   },
 
   // ── power ────────────────────────────────────────────────────────────
@@ -169,7 +169,7 @@ const STOCK = [
     watts: 0,
     color: "#FFC64B",
     cat: "power",
-    glyph: "⚡",
+    icon: "⚡",
   },
   {
     id: "pdu-ac",
@@ -180,7 +180,7 @@ const STOCK = [
     watts: 0,
     color: "#FFC64B",
     cat: "power",
-    glyph: "⚡",
+    icon: "⚡",
   },
   {
     id: "ups",
@@ -191,7 +191,7 @@ const STOCK = [
     watts: 0,
     color: "#FFC64B",
     cat: "power",
-    glyph: "▣",
+    icon: "▣",
   },
 
   // ── passive ──────────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ const STOCK = [
     watts: 0,
     color: "#5B5B84",
     cat: "passive",
-    glyph: "─",
+    icon: "─",
   },
   {
     id: "blank-half",
@@ -215,7 +215,7 @@ const STOCK = [
     watts: 0,
     color: "#5B5B84",
     cat: "passive",
-    glyph: "─",
+    icon: "─",
   },
   {
     id: "shelf1",
@@ -226,7 +226,7 @@ const STOCK = [
     watts: 0,
     color: "#5B5B84",
     cat: "passive",
-    glyph: "▤",
+    icon: "▤",
   },
   {
     id: "shelf-vent",
@@ -237,7 +237,7 @@ const STOCK = [
     watts: 0,
     color: "#5B5B84",
     cat: "passive",
-    glyph: "▨",
+    icon: "▨",
   },
   {
     id: "brush",
@@ -248,7 +248,7 @@ const STOCK = [
     watts: 0,
     color: "#5B5B84",
     cat: "passive",
-    glyph: "≋",
+    icon: "≋",
   },
   {
     id: "dring",
@@ -259,7 +259,7 @@ const STOCK = [
     watts: 0,
     color: "#5B5B84",
     cat: "passive",
-    glyph: "◠◠",
+    icon: "◠◠",
   },
   {
     id: "drawer",
@@ -270,7 +270,7 @@ const STOCK = [
     watts: 0,
     color: "#5B5B84",
     cat: "passive",
-    glyph: "▭",
+    icon: "▭",
   },
   {
     id: "fan",
@@ -281,7 +281,7 @@ const STOCK = [
     watts: 5,
     color: "#FF6E5E",
     cat: "passive",
-    glyph: "✳",
+    icon: "✳",
   },
 ];
 
@@ -312,13 +312,13 @@ export function collectionById(id) {
   return COLLECTIONS.find((c) => c.id === id) ?? null;
 }
 
-/** a printed part's kind drives its glyph and colour, same as the stock catalog. */
+/** a printed part's kind drives its icon and colour, same as the stock catalog. */
 const KINDS = {
-  compute: { glyph: "●", color: "#7D56F4" },
-  network: { glyph: "⇄", color: "#4EE6FF" },
-  power: { glyph: "⚡", color: "#FFC64B" },
-  storage: { glyph: "▦", color: "#C8A2FF" },
-  passive: { glyph: "▤", color: "#5B5B84" },
+  compute: { icon: "●", color: "#7D56F4" },
+  network: { icon: "⇄", color: "#4EE6FF" },
+  power: { icon: "⚡", color: "#FFC64B" },
+  storage: { icon: "▦", color: "#C8A2FF" },
+  passive: { icon: "▤", color: "#5B5B84" },
 };
 
 // id · name · u · width · kind · maker · collection · depthMm · watts · uExact
@@ -354,6 +354,9 @@ const PRINT_ROWS = [
   ['mw-dual-flexatx', 'dual flex atx panel',           1,   'full', 'power',   'RiHi36',         'storage-rack', 160, 0],
 ];
 
+// a handful of prints are for one specific, identifiable box
+const PRINT_ICONS = { "mw-usw-lite-8": "sh:ubiquiti-unifi" };
+
 export const PRINTS = PRINT_ROWS.map(
   ([
     id,
@@ -380,6 +383,7 @@ export const PRINTS = PRINT_ROWS.map(
     uExact,
     printed: true,
     ...KINDS[kind],
+    ...(PRINT_ICONS[id] ? { icon: PRINT_ICONS[id] } : {}),
   }),
 );
 

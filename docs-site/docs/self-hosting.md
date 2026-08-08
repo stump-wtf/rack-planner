@@ -24,6 +24,23 @@ exactly the bug that bit `apps.stump.wtf`. The bundled nginx config sets
 `max-age=300, must-revalidate`; if you put a CDN in front, match it.
 :::
 
+## icons and the CSP
+
+The bundled nginx config ships a strict `Content-Security-Policy`. Device icons
+are fetched from two CDNs, so both appear in `img-src` (to render them) and
+`connect-src` (to inline them into an export):
+
+```
+https://cdn.jsdelivr.net      selfh.st icons
+https://cdn.simpleicons.org   simple icons
+```
+
+Keep that list in step with `ICON_HOSTS` in `js/icons.js`. If you serve the app
+behind your own proxy with its own CSP, allow the same two hosts — otherwise
+every icon silently falls back to a glyph.
+
+Offline, the app still works: icons degrade to glyphs and nothing else changes.
+
 ## building it yourself
 
 ```bash

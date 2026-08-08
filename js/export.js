@@ -22,7 +22,13 @@ const TEXT = "#F4F4FF";
 const MUTED = "#8888B0";
 const DIM = "#5B5B84";
 
-export function toSvg(state, { title = "rack plan" } = {}) {
+/**
+ * `icons` is a Map of icon-reference -> data: URI, from icons.resolveIcons().
+ * Passing it in keeps this function pure and synchronous, which is what makes
+ * it testable and what guarantees the export cannot drift from the DOM. Omit it
+ * and library icons simply fall back to their glyph.
+ */
+export function toSvg(state, { title = "rack plan", icons = new Map() } = {}) {
   const chassis = chassisById(state.chassisId);
   const rows = chassis.u * 2;
   const rackH = chassis.u * U_H;
@@ -89,10 +95,24 @@ export function toSvg(state, { title = "rack plan" } = {}) {
       `<rect x="${bx}" y="${by}" width="3" height="${bh}" rx="1.5" fill="${c}"/>`,
     );
 
-    const label = `${it.glyph ? it.glyph + " " : ""}${it.name}`;
     const fs = bh < 18 ? 9 : 11;
+    const art = icons.get(it.icon);
+    let textX = bx + 10;
+    if (art) {
+      // a resolved library icon renders as an inlined image, so the exported
+      // svg stands alone with no network
+      const sz = Math.min(14, bh - 8);
+      parts.push(
+        `<image x="${bx + 9}" y="${by + (bh - sz) / 2}" width="${sz}" height="${sz}" href="${esc(art)}"/>`,
+      );
+      textX = bx + 9 + sz + 6;
+    }
+    const label = art
+      ? it.name
+      : `${it.icon && !icons.has(it.icon) ? glyphOf(it.icon) + " " : ""}${it.name}`;
+    const avail = Math.max(0, bx + bw - textX - 8);
     parts.push(
-      `<text x="${bx + 10}" y="${by + bh / 2 + fs / 3}" fill="${TEXT}" font-size="${fs}">${esc(clip(label, Math.floor(bw / (fs * 0.62))))}</text>`,
+      `<text x="${textX}" y="${by + bh / 2 + fs / 3}" fill="${TEXT}" font-size="${fs}">${esc(clip(label, Math.floor(avail / (fs * 0.62))))}</text>`,
     );
     if (bh >= 26) {
       const meta = `${fmtU(it.u)}u${it.watts ? ` · ${it.watts}w` : ""}`;
@@ -110,6 +130,11 @@ export function toSvg(state, { title = "rack plan" } = {}) {
 
   parts.push("</svg>");
   return parts.join("\n");
+}
+
+/** an unresolved "sh:foo"/"si:foo" reference must not print as literal text. */
+function glyphOf(icon) {
+  return /^(sh|si):/i.test(String(icon)) ? "\u25aa" : icon;
 }
 
 export function fmtU(u) {

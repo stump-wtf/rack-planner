@@ -591,3 +591,64 @@ select:focus {
     width: min(440px, 88vw);
   }
 }
+
+/* ── icons ───────────────────────────────────────────────────────────── */
+
+/* library icons render as <img>; glyphs stay text. size them alike so a rack
+   mixing both does not look ragged */
+.g--img {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  flex: none;
+  display: block;
+}
+.chip .g--img {
+  width: 13px;
+  height: 13px;
+}
+/* selfh.st marks are full-colour and can disappear on the dark surface */
+.dev .g--img,
+.chip .g--img {
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.7));
+}
+
+.icon-row {
+  display: grid;
+  grid-template-columns: 24px 88px 1fr;
+  gap: 6px;
+  align-items: center;
+}
+.icon-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  border: 1px solid var(--line-dim);
+  border-radius: var(--radius-xs);
+  background: var(--bg-inset);
+  color: var(--text-body);
+}
+.icon-row select,
+.icon-row input {
+  font-size: 11px;
+  padding: 4px 6px;
+}
+
+.hint {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 8px;
+}
+
+.swatch--glyph {
+  background: var(--bg-inset);
+  color: var(--text-body);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+}
+.swatch--glyph:hover {
+  color: var(--neon-cyan);
+  border-color: var(--line-bright);
+}

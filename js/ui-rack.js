@@ -21,6 +21,7 @@ import {
   nextId,
 } from "./state.js";
 import { fmtU } from "./export.js";
+import { iconEl } from "./icons.js";
 
 let rackEl;
 let rulerEl;
@@ -222,9 +223,7 @@ export function render() {
     if (conflicts.has(it.id)) el.classList.add("is-conflict");
     if (rect.rowSpan < 2) el.classList.add("is-short");
 
-    const g = document.createElement("span");
-    g.className = "g";
-    g.textContent = it.glyph || "▪";
+    const g = iconEl(it.icon, it.color, "g");
     const n = document.createElement("span");
     n.className = "n";
     n.textContent = it.name;

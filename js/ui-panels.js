@@ -15,6 +15,14 @@ import { uLabelFor } from "./grid.js";
 import { state, commit, derived } from "./state.js";
 import { beginNewDrag, addFromCatalog } from "./ui-rack.js";
 import { fmtU } from "./export.js";
+import {
+  iconEl,
+  SOURCES,
+  SUGGESTIONS,
+  GLYPHS,
+  parseRef,
+  formatRef,
+} from "./icons.js";
 
 let paletteEl;
 let inspectorEl;
@@ -144,7 +152,7 @@ function chip(def) {
       },
     },
     [
-      el("span", { class: "g", text: def.glyph }),
+      iconEl(def.icon, def.color, "g"),
       el("span", { class: "n", text: def.name }),
       el("span", { class: "u", text: uText }),
     ],
@@ -218,7 +226,7 @@ function customForm() {
         depthMm: Number(depth.value) || 0,
         watts: Number(watts.value) || 0,
         color,
-        glyph: "▪",
+        icon: "▪",
         cat: "custom",
       };
       if (!addFromCatalog(def)) say("no room left for that");
@@ -385,6 +393,8 @@ function selectionFields(sel) {
         }),
       ]),
     ]),
+    el("label", { text: "icon" }),
+    iconPicker(sel, patch),
     el("label", { text: "colour" }),
   ];
 
@@ -462,6 +472,91 @@ function selectionFields(sel) {
   );
 
   return fields;
+}
+
+/**
+ * Icon picker: pick a library, type a slug, see it resolve live.
+ *
+ * There is deliberately no browse-all grid — the selfh.st and simple-icons
+ * indexes are 845KB and 372KB, which is not a reasonable thing to download so
+ * someone can pick a picture. The datalist covers the common homelab cases and
+ * the "browse ↗" link covers everything else.
+ */
+function iconPicker(sel, patch) {
+  const current = parseRef(sel.icon);
+  const source = current?.source ?? "sh";
+  const listId = "iconsuggest";
+
+  const preview = el("span", { class: "icon-preview" }, [
+    iconEl(sel.icon, sel.color, "g"),
+  ]);
+
+  const srcSel = el(
+    "select",
+    {
+      onchange: () => apply(),
+      "aria-label": "icon library",
+    },
+    Object.values(SOURCES).map((s) =>
+      el("option", {
+        value: s.id,
+        text: s.label,
+        selected: s.id === source ? "" : null,
+      }),
+    ),
+  );
+
+  const slug = el("input", {
+    type: "text",
+    list: listId,
+    placeholder: "slug, e.g. jellyfin",
+    value: current?.slug ?? "",
+    "aria-label": "icon slug",
+    onchange: () => apply(),
+  });
+
+  // a shared datalist; harmless to re-add, the browser dedupes by id
+  const list = el(
+    "datalist",
+    { id: listId },
+    SUGGESTIONS.map((r) => el("option", { value: parseRef(r).slug })),
+  );
+
+  function apply() {
+    const ref = formatRef(srcSel.value, slug.value);
+    // an empty slug means "no logo" — fall back to a plain glyph
+    patch((it) => (it.icon = ref || "▪"));
+  }
+
+  const browse = el("a", {
+    class: "coll-link",
+    href: SOURCES[source].browse,
+    target: "_blank",
+    rel: "noopener noreferrer",
+    text: `browse ${SOURCES[source].label} ↗`,
+  });
+
+  const glyphRow = el(
+    "div",
+    { class: "swatches" },
+    GLYPHS.map((g) =>
+      el("button", {
+        class: "swatch swatch--glyph",
+        type: "button",
+        text: g,
+        title: `use the ${g} glyph`,
+        "aria-pressed": sel.icon === g ? "true" : "false",
+        onclick: () => patch((it) => (it.icon = g)),
+      }),
+    ),
+  );
+
+  return el("div", {}, [
+    el("div", { class: "icon-row" }, [preview, srcSel, slug, list]),
+    browse,
+    el("div", { class: "hint", text: "…or a plain glyph:" }),
+    glyphRow,
+  ]);
 }
 
 function stat(k, v, cls = "") {

@@ -31,6 +31,40 @@ do not, and those are marked `uExact: false`, shown with a **≈** in the palett
 and carry a warning in the inspector. Check the model page before printing.
 :::
 
+## icons
+
+Every device carries an icon, which is either a **library reference** or a plain
+Unicode glyph:
+
+| stored value | resolves to |
+| --- | --- |
+| `sh:jellyfin` | [selfh.st/icons](https://selfh.st/icons/) — self-hosted software |
+| `si:docker` | [simpleicons.org](https://simpleicons.org) — brand marks |
+| `▦` | taken literally |
+
+Select a device, pick a library, and type a slug — the preview resolves as you
+type. Simple Icons are monochrome, so they get tinted to the device's colour;
+selfh.st marks are already full-colour and are left alone.
+
+References are stored, never markup. That keeps share URLs short: inlining SVG
+would add kilobytes per device to a link that has to fit in an address bar.
+
+:::note browsing
+There is no browse-all grid. The two indexes are 845KB and 372KB, which is not a
+reasonable download just to pick a picture. The slug field has a datalist of
+~55 common homelab icons, and each library's "browse ↗" link opens the real
+thing.
+:::
+
+Exports resolve differently: `toSvg()` takes a map of pre-fetched icons and
+inlines them as data URIs, so a downloaded SVG or PNG keeps working offline. An
+icon that fails to fetch falls back to a glyph rather than failing the export.
+
+`make check-icons` probes every curated slug against the live CDNs. It is
+deliberately **not** part of `make check` — it needs network, and a flaky gate is
+worse than none. Run it when you touch the list; six slugs in the first draft
+were wrong because they were guessed rather than verified.
+
 ## searching
 
 The palette has a filter that matches on name, maker, category and collection —

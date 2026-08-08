@@ -30,6 +30,8 @@ import {
 } from "./ui-panels.js";
 import { encode, decode } from "./share.js";
 import { toSvg, toPng, download } from "./export.js";
+import { resolveIcons } from "./icons.js";
+import { serialize, deserialize, isTextTarget } from "./clipboard.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -133,13 +135,24 @@ $("share").addEventListener("click", async () => {
   }
 });
 
-$("svg").addEventListener("click", () => {
-  download(filename("svg"), toSvg(state), "image/svg+xml");
+$("svg").addEventListener("click", async () => {
+  download(filename("svg"), await renderSvg(), "image/svg+xml");
 });
+
+/** resolve library icons to data URIs so the exported file needs no network. */
+async function renderSvg() {
+  let icons = new Map();
+  try {
+    icons = await resolveIcons(state.items);
+  } catch {
+    say("icons could not be fetched — exporting with glyphs");
+  }
+  return toSvg(state, { icons });
+}
 
 $("png").addEventListener("click", async () => {
   try {
-    download(filename("png"), await toPng(toSvg(state), 2));
+    download(filename("png"), await toPng(await renderSvg(), 2));
   } catch (err) {
     say(`png export failed: ${err.message}`);
   }
@@ -199,6 +212,31 @@ window.addEventListener("keydown", (ev) => {
   if (!m || !state.selectedId) return;
   ev.preventDefault();
   if (!nudge(m[0], m[1])) say("blocked");
+});
+
+// ── copy / paste ───────────────────────────────────────────────────────────
+//
+// These ride the browser's own copy/paste events rather than
+// navigator.clipboard, which needs a permission prompt to READ and refuses
+// outright when the document is not focused. clipboardData on a real user
+// event needs neither, and works across tabs and windows for free.
+
+document.addEventListener("copy", (ev) => {
+  if (isTextTarget(ev.target)) return; // let the browser copy the text
+  const sel = state.items.find((i) => i.id === state.selectedId);
+  if (!sel) return;
+  ev.preventDefault();
+  ev.clipboardData.setData("text/plain", serialize(sel));
+  say(`copied ${sel.name}`);
+});
+
+document.addEventListener("paste", (ev) => {
+  if (isTextTarget(ev.target)) return;
+  const def = deserialize(ev.clipboardData.getData("text/plain"));
+  if (!def) return; // not one of ours; leave the paste alone
+  ev.preventDefault();
+  if (!addFromCatalog(def)) say("no room to paste that");
+  else say(`pasted ${def.name}`);
 });
 
 // ── render loop ────────────────────────────────────────────────────────────

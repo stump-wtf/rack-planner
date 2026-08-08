@@ -15,7 +15,7 @@ const rack = (over = {}) => ({
       depthMm: 120,
       watts: 12,
       color: "#00F0A8",
-      glyph: "◆",
+      icon: "◆",
       row: 0,
       col: 0,
     },
@@ -26,7 +26,7 @@ const rack = (over = {}) => ({
       depthMm: 160,
       watts: 15,
       color: "#4EE6FF",
-      glyph: "⌁",
+      icon: "⌁",
       row: 0,
       col: 1,
     },
@@ -37,7 +37,7 @@ const rack = (over = {}) => ({
       depthMm: 250,
       watts: 60,
       color: "#C8A2FF",
-      glyph: "▦",
+      icon: "▦",
       row: 2,
       col: 0,
     },
@@ -91,7 +91,7 @@ test("device names cannot inject markup", () => {
   const svg = toSvg(
     rack({
       items: [
-        { ...rack().items[0], name: "<script>alert(1)</script>", glyph: "&" },
+        { ...rack().items[0], name: "<script>alert(1)</script>", icon: "&" },
       ],
     }),
   );

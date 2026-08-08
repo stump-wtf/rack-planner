@@ -5,7 +5,7 @@
 
 PORT ?= 5173
 
-.PHONY: test lint fmt fmt-check check ci dev clean
+.PHONY: test lint fmt fmt-check check check-icons ci dev clean
 
 ## test — the geometry, catalog and share-link gates
 test:
@@ -30,6 +30,11 @@ fmt:
 	else \
 		echo "SKIP: prettier not installed"; \
 	fi
+
+## check-icons — probe the curated icon slugs against the live CDNs.
+## NOT in `make check`: it needs network, and a flaky gate is worse than none.
+check-icons:
+	node scripts/check-icons.mjs
 
 ## check / ci — the gate
 check: lint test

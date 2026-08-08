@@ -61,6 +61,7 @@ exactly as written.
 | `⇧↑` `⇧↓` | nudge a whole U |
 | `←` `→` | swap bays (half-width gear) |
 | `⌫` | remove |
+| `⌘c` / `⌘v` | copy · paste (works across tabs) |
 | `⌘d` | duplicate |
 | `⌘z` / `⇧⌘z` | undo / redo |
 | `esc` | deselect |
