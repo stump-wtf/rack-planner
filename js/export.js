@@ -107,9 +107,13 @@ export function toSvg(state, { title = "rack plan", icons = new Map() } = {}) {
       );
       textX = bx + 9 + sz + 6;
     }
+    // no art: a glyph prints as itself; a reference — unresolved, or resolved
+    // to null by a failed fetch — prints the fallback glyph, never "sh:foo" as
+    // literal text. The docs and the PR both promise a dead icon degrades to a
+    // glyph; the icons.has() special-case used to print name-only instead.
     const label = art
       ? it.name
-      : `${it.icon && !icons.has(it.icon) ? glyphOf(it.icon) + " " : ""}${it.name}`;
+      : `${it.icon ? glyphOf(it.icon) + " " : ""}${it.name}`;
     const avail = Math.max(0, bx + bw - textX - 8);
     parts.push(
       `<text x="${textX}" y="${by + bh / 2 + fs / 3}" fill="${TEXT}" font-size="${fs}">${esc(clip(label, Math.floor(avail / (fs * 0.62))))}</text>`,

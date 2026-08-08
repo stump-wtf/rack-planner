@@ -491,10 +491,25 @@ function iconPicker(sel, patch) {
     iconEl(sel.icon, sel.color, "g"),
   ]);
 
+  const browse = el("a", {
+    class: "coll-link",
+    href: SOURCES[source].browse,
+    target: "_blank",
+    rel: "noopener noreferrer",
+    text: `browse ${SOURCES[source].label} ↗`,
+  });
+
   const srcSel = el(
     "select",
     {
-      onchange: () => apply(),
+      // Switching library does NOT commit: the slug typed so far belongs to the
+      // old library, so applying here would rewrite the device's icon to a slug
+      // that does not exist in the new one (sh:truenas-scale → si:truenas-scale,
+      // a 404). It just re-aims the browse link; the next slug edit commits.
+      onchange: () => {
+        browse.href = SOURCES[srcSel.value].browse;
+        browse.textContent = `browse ${SOURCES[srcSel.value].label} ↗`;
+      },
       "aria-label": "icon library",
     },
     Object.values(SOURCES).map((s) =>
@@ -527,14 +542,6 @@ function iconPicker(sel, patch) {
     // an empty slug means "no logo" — fall back to a plain glyph
     patch((it) => (it.icon = ref || "▪"));
   }
-
-  const browse = el("a", {
-    class: "coll-link",
-    href: SOURCES[source].browse,
-    target: "_blank",
-    rel: "noopener noreferrer",
-    text: `browse ${SOURCES[source].label} ↗`,
-  });
 
   const glyphRow = el(
     "div",

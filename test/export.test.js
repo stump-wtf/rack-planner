@@ -109,6 +109,22 @@ test("an empty rack still exports a frame", () => {
   assert.match(svg, /<\/svg>$/m);
 });
 
+test("a dead icon falls back to the glyph, never to literal ref text", () => {
+  // The docs promise "an icon that fails to fetch falls back to a glyph".
+  // resolveIcons() records a failed fetch as null IN the map, so the export
+  // has to treat a mapped null the same as an unmapped reference.
+  const device = { ...rack().items[0], icon: "sh:nope" };
+  const failed = toSvg(rack({ items: [device] }), {
+    icons: new Map([["sh:nope", null]]),
+  });
+  assert.ok(!failed.includes("sh:nope"), "the reference must not print");
+  assert.ok(failed.includes("\u25aa"), "the fallback glyph prints instead");
+
+  const unresolved = toSvg(rack({ items: [device] }));
+  assert.ok(!unresolved.includes("sh:nope"));
+  assert.ok(unresolved.includes("\u25aa"));
+});
+
 test("half-U heights render as .5u, whole ones without a decimal", () => {
   assert.equal(fmtU(1), "1");
   assert.equal(fmtU(2), "2");
