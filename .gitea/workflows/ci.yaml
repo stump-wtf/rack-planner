@@ -34,10 +34,19 @@ jobs:
 
   gitleaks:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # The upstream gitleaks/gitleaks-action@v2 now demands a paid
+      # GITLEAKS_LICENSE for organisations and fails the job without one. Use
+      # the house fork, same as switchboard and cairn.
+      - name: gitleaks
+        uses: https://gitea.stump.rocks/stumpcloud/gitleaks-action@v1
+        with:
+          gitea-token: ${{ github.token }}
+          publish: "false"

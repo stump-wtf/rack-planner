@@ -6,7 +6,15 @@
 # Tests are the CI gate (`make test`), not a Docker build stage — running them
 # here would need node in the image for no runtime benefit.
 
-FROM nginxinc/nginx-unprivileged:1.27-alpine
+FROM nginxinc/nginx-unprivileged:1.29-alpine
+
+# Apply Alpine security patches so the Trivy CRITICAL/HIGH gate passes
+# legitimately rather than by being waived. The 1.27-alpine base shipped
+# openssl 3.3.3-r0, libexpat, libpng and c-ares with 2 CRITICAL + 31 HIGH
+# between them; the newer base plus this upgrade clears them.
+USER root
+RUN apk --no-cache upgrade
+USER 101
 
 LABEL org.opencontainers.image.title="rack-planner" \
       org.opencontainers.image.description="Snap-to-grid planning for 10\" mini racks" \
