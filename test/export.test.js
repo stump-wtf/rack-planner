@@ -131,3 +131,68 @@ test("half-U heights render as .5u, whole ones without a decimal", () => {
   assert.equal(fmtU(0.5), ".5");
   assert.equal(fmtU(1.5), "1.5");
 });
+
+// ── power gauge ────────────────────────────────────────────────────────────
+//
+// A plan you hand someone should carry its power story, not just its shelves.
+// The export used to say "87w of 300w" in the header and then draw nothing, so
+// the gauge the budget exists for was missing from every png anyone downloaded.
+//
+// The fixture rack draws 87w across its three devices.
+
+/** the fill rect's height, or 0 when there is no fill at all */
+const fillHeight = (svg) => {
+  const m = svg.match(/<rect[^>]*height="(\d+)" fill="url\(#pg\)"/);
+  return m ? Number(m[1]) : 0;
+};
+/** the gauge track's height, which the fill is a fraction of */
+const trackHeight = (svg) => {
+  const m = svg.match(/<rect x="\d+" y="\d+" width="22" height="(\d+)" rx="4"/);
+  return m ? Number(m[1]) : 0;
+};
+
+test("a budgeted rack exports a gauge, filled to the fraction drawn", () => {
+  const svg = toSvg(rack());
+  const track = trackHeight(svg);
+  assert.ok(track > 0, "the gauge track should be drawn");
+  assert.equal(fillHeight(svg), Math.round(track * (87 / 300)));
+});
+
+test("the readout beside the gauge reads draw over budget", () => {
+  assert.match(toSvg(rack()), />87w \/ 300w</);
+});
+
+test("over budget pins the fill at full and turns coral", () => {
+  const svg = toSvg(rack({ budgetW: 10 }));
+  assert.equal(
+    fillHeight(svg),
+    trackHeight(svg),
+    "past 100% there is no more bar to give",
+  );
+  assert.match(svg, /stop-color="#FF6E5E"/);
+});
+
+test("getting close turns gold before it turns coral", () => {
+  // 87w of 100w is 87% — warn, not bad
+  const svg = toSvg(rack({ budgetW: 100 }));
+  assert.match(svg, /stop-color="#FFC64B"/);
+  assert.ok(!svg.includes("#FF6E5E"), "87% is not over budget");
+});
+
+test("no budget draws the track but nothing to measure against", () => {
+  const svg = toSvg(rack({ budgetW: 0 }));
+  assert.ok(trackHeight(svg) > 0, "the track is still drawn");
+  assert.equal(fillHeight(svg), 0);
+  assert.match(
+    svg,
+    /letter-spacing="0.4">87w</,
+    "the readout falls back to the draw alone",
+  );
+});
+
+test("the canvas is wide enough for the gauge and its readout", () => {
+  const svg = toSvg(rack());
+  const w = Number(svg.match(/<svg[^>]*width="(\d+)"/)[1]);
+  const gx = Number(svg.match(/<rect x="(\d+)" y="\d+" width="22"/)[1]);
+  assert.ok(gx + 22 < w, "the gauge must not run off the canvas");
+});

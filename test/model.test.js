@@ -13,6 +13,7 @@ import {
   PRINTS,
   COLLECTIONS,
   collectionById,
+  powerOf,
 } from "../js/model.js";
 import { rowsFor, rowSpanFor, colSpanFor } from "../js/grid.js";
 
@@ -154,4 +155,47 @@ test("panel height converts U to millimetres", () => {
   assert.equal(heightMm(1), 44.45);
   assert.equal(heightMm(0.5), 22.23);
   assert.equal(heightMm(12), 533.4);
+});
+
+// ── power ──────────────────────────────────────────────────────────────────
+//
+// powerOf is the single place that decides what "getting close" means, so the
+// inspector meter, the gauge beside the rack and the exported svg cannot drift
+// apart. state.derived() and export.toSvg() both read it.
+
+const draw = (...watts) => watts.map((w) => ({ watts: w }));
+
+test("powerOf sums every device's draw", () => {
+  assert.equal(powerOf(draw(12, 15, 60), 300).watts, 87);
+  assert.equal(powerOf([], 300).watts, 0);
+});
+
+test("a rack with headroom has no level", () => {
+  assert.equal(powerOf(draw(87), 300).level, "");
+  assert.equal(powerOf(draw(87), 300).overBudget, false);
+});
+
+test("past 80% it warns, past the budget it is over", () => {
+  assert.equal(powerOf(draw(81), 100).level, "is-warn");
+  assert.equal(
+    powerOf(draw(80), 100).level,
+    "",
+    "exactly 80% is not yet close",
+  );
+  assert.equal(powerOf(draw(101), 100).level, "is-bad");
+  // exactly on budget is not OVER, but it is certainly close
+  assert.equal(powerOf(draw(100), 100).level, "is-warn");
+  assert.equal(powerOf(draw(100), 100).overBudget, false);
+});
+
+test("no budget is idle, not over — there is nothing to measure against", () => {
+  const p = powerOf(draw(500), 0);
+  assert.equal(p.level, "is-idle");
+  assert.equal(p.overBudget, false);
+  assert.equal(p.pct, 0);
+});
+
+test("garbage degrades to zero rather than NaN", () => {
+  assert.equal(powerOf(draw("x", null, undefined), "nope").watts, 0);
+  assert.equal(powerOf(draw(10), -5).budgetW, 0);
 });

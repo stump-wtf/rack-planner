@@ -4,7 +4,7 @@
 // never drift from what is on screen. no image library: png is the svg through
 // a canvas.
 
-import { chassisById, heightMm } from "./model.js";
+import { chassisById, heightMm, powerOf } from "./model.js";
 import { rowSpanFor, colSpanFor } from "./grid.js";
 
 const PAD = 18;
@@ -13,6 +13,11 @@ const RACK_W = 430;
 const U_H = 46;
 const HEAD = 46;
 const FOOT = 26;
+// the power gauge beside the rack, mirroring the on-screen widget: bar, then a
+// gap, then the readout printed bottom-to-top so the column stays narrow
+const GAUGE_W = 22;
+const GAUGE_GAP = 12;
+const READ_W = 18;
 
 const BG = "#0E0E1A";
 const INSET = "#0A0A14";
@@ -21,6 +26,16 @@ const LINE_DIM = "#262645";
 const TEXT = "#F4F4FF";
 const MUTED = "#8888B0";
 const DIM = "#5B5B84";
+const TICK = "#8282AF";
+
+// same thresholds-to-colour mapping the stylesheet uses, so a printed plan and
+// the screen agree about when a rack is getting tight
+const GAUGE_COLORS = {
+  "": ["#00F0A8", "#4EE6FF"],
+  "is-warn": ["#FFC64B", "#FFC64B"],
+  "is-bad": ["#FF6E5E", "#FF6E5E"],
+  "is-idle": [DIM, DIM],
+};
 
 /**
  * `icons` is a Map of icon-reference -> data: URI, from icons.resolveIcons().
@@ -32,7 +47,7 @@ export function toSvg(state, { title = "rack plan", icons = new Map() } = {}) {
   const chassis = chassisById(state.chassisId);
   const rows = chassis.u * 2;
   const rackH = chassis.u * U_H;
-  const w = PAD * 2 + LABEL_W + RACK_W;
+  const w = PAD * 2 + LABEL_W + RACK_W + GAUGE_GAP + GAUGE_W + READ_W;
   const h = PAD * 2 + HEAD + rackH + FOOT;
 
   // y of the TOP edge of a half-U row, given rows count up from the bottom
@@ -126,6 +141,57 @@ export function toSvg(state, { title = "rack plan", icons = new Map() } = {}) {
         `<text x="${bx + bw - 8}" y="${by + bh / 2 + 4}" fill="${MUTED}" font-size="9" text-anchor="end">${esc(meta)}</text>`,
       );
     }
+  }
+
+  // ── power gauge ──────────────────────────────────────────────────────────
+  // Stands beside the rack at its full height, so the fill reads as "how much
+  // of the budget is spent" at a glance — the same thing the app shows. A plan
+  // you hand someone should carry its power story, not just its shelves.
+  {
+    const gx = x0 + RACK_W + GAUGE_GAP;
+    const gy = PAD + HEAD;
+    const p = powerOf(state.items, state.budgetW);
+    const [gauge, gaugeHi] = GAUGE_COLORS[p.level] ?? GAUGE_COLORS[""];
+
+    parts.push(
+      `<rect x="${gx}" y="${gy}" width="${GAUGE_W}" height="${rackH}" rx="4" fill="${INSET}" stroke="${LINE}" stroke-width="1.5"/>`,
+    );
+
+    // quarter marks, in a mid-tone that reads against the empty track and the
+    // bright fill alike — drawn over the fill so the scale stays continuous
+    const ticks = [];
+    for (let q = 1; q <= 3; q++) {
+      const ty = gy + rackH * (q / 4);
+      ticks.push(
+        `<line x1="${gx}" y1="${ty}" x2="${gx + GAUGE_W}" y2="${ty}" stroke="${TICK}" stroke-opacity="0.5" stroke-width="1"/>`,
+      );
+    }
+
+    if (p.budgetW) {
+      // over budget pins at full: past 100% there is no more bar to give
+      const frac = Math.min(1, p.pct / 100);
+      const fh = Math.round(rackH * frac);
+      if (fh > 0) {
+        parts.push(
+          `<defs><linearGradient id="pg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${gauge}"/><stop offset="1" stop-color="${gaugeHi}"/></linearGradient></defs>`,
+        );
+        parts.push(
+          `<rect x="${gx}" y="${gy + rackH - fh}" width="${GAUGE_W}" height="${fh}" fill="url(#pg)"/>`,
+        );
+        // the bright lip, so it reads as a level rather than a block
+        parts.push(
+          `<rect x="${gx}" y="${gy + rackH - fh}" width="${GAUGE_W}" height="2" fill="${TEXT}" fill-opacity="0.85"/>`,
+        );
+      }
+    }
+    parts.push(...ticks);
+
+    const readout = p.budgetW ? `${p.watts}w / ${p.budgetW}w` : `${p.watts}w`;
+    const rx = gx + GAUGE_W + 12;
+    const ry = gy + rackH;
+    parts.push(
+      `<text x="${rx}" y="${ry}" transform="rotate(-90 ${rx} ${ry})" fill="${gauge}" font-size="9" letter-spacing="0.4">${esc(readout)}</text>`,
+    );
   }
 
   // footer

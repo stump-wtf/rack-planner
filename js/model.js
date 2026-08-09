@@ -405,3 +405,31 @@ export function catalogById(id) {
 export function heightMm(u) {
   return +(u * U_MM).toFixed(2);
 }
+
+/**
+ * The whole-rack power picture, from items and a budget.
+ *
+ * One place decides the thresholds so the inspector meter, the gauge beside the
+ * rack and the exported svg cannot disagree about what counts as "getting
+ * close". `level` is "" while there is headroom, and "is-idle" means no budget
+ * is set — nothing to measure against, so the gauge stays quiet.
+ */
+export function powerOf(items, budget) {
+  const watts = items.reduce((n, i) => n + (Number(i.watts) || 0), 0);
+  const budgetW = Math.max(0, Number(budget) || 0);
+  const overBudget = budgetW > 0 && watts > budgetW;
+  const pct = budgetW > 0 ? (watts / budgetW) * 100 : 0;
+  return {
+    watts,
+    budgetW,
+    overBudget,
+    pct,
+    level: !budgetW
+      ? "is-idle"
+      : overBudget
+        ? "is-bad"
+        : pct > 80
+          ? "is-warn"
+          : "",
+  };
+}

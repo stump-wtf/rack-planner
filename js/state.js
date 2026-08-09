@@ -8,7 +8,7 @@ import {
   findConflicts,
   freeU,
 } from "./grid.js";
-import { chassisById } from "./model.js";
+import { chassisById, powerOf } from "./model.js";
 import { loadLibrary, saveLibrary, getActive, setActive } from "./designs.js";
 
 const KEY = "rackplanner.v1";
@@ -220,11 +220,13 @@ export function rectsExcept(id) {
 export function derived() {
   const rows = rackRows();
   const rects = state.items.map(rectOf);
-  // the budget is for the whole rack: every device's draw, summed
-  const watts = state.items.reduce((n, i) => n + (Number(i.watts) || 0), 0);
-  const budgetW = Math.max(0, Number(state.budgetW) || 0);
-  const overBudget = budgetW > 0 && watts > budgetW;
-  const pct = budgetW > 0 ? (watts / budgetW) * 100 : 0;
+  // the budget is for the whole rack: every device's draw, summed. the rule
+  // lives in model.powerOf so the meter, the gauge and the svg export cannot
+  // drift apart on what counts as "getting close".
+  const { watts, budgetW, overBudget, pct, level } = powerOf(
+    state.items,
+    state.budgetW,
+  );
   const tooDeep = state.items.filter((i) => Number(i.depthMm) > state.depthMm);
   return {
     rows,
@@ -234,9 +236,9 @@ export function derived() {
     budgetW,
     overBudget,
     pct,
-    // one place decides the thresholds, so the inspector meter and the rack
-    // gauge can never disagree about what counts as "getting close"
-    powerLevel: overBudget ? "is-bad" : pct > 80 ? "is-warn" : "",
+    // "is-idle" is the gauge's business — the inspector only cares whether the
+    // budget is being approached, and treats no-budget as no warning
+    powerLevel: level === "is-idle" ? "" : level,
     headroomW: budgetW > 0 ? budgetW - watts : null,
     tooDeep,
     conflicts: findConflicts(rects),
