@@ -41,7 +41,7 @@ export function initPanels(elements) {
   });
 }
 
-function el(tag, props = {}, children = []) {
+export function el(tag, props = {}, children = []) {
   const n = document.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
     if (k === "class") n.className = v;

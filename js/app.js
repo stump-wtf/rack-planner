@@ -32,6 +32,7 @@ import { encode, decode } from "./share.js";
 import { toSvg, toPng, download } from "./export.js";
 import { resolveIcons } from "./icons.js";
 import { serialize, deserialize, isTextTarget } from "./clipboard.js";
+import { initDesignsBar, renderDesignsBar } from "./ui-designs.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -52,6 +53,7 @@ initRack({
   readEl: $("power-read"),
 });
 initPanels({ paletteEl: $("palette"), inspectorEl: $("inspector"), toast });
+initDesignsBar({ barEl: $("designs-bar") });
 
 // ── chassis switcher ───────────────────────────────────────────────────────
 
@@ -250,6 +252,7 @@ document.addEventListener("paste", (ev) => {
 
 function renderAll() {
   renderChassis();
+  renderDesignsBar();
   renderRack();
   renderInspector();
   $("undo").disabled = !canUndo();
