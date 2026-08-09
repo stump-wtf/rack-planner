@@ -25,12 +25,20 @@ import { iconEl } from "./icons.js";
 
 let rackEl;
 let rulerEl;
+let powerEl;
+let gaugeEl;
+let fillEl;
+let readEl;
 let ghostEl = null;
 let drag = null; // { mode:'move'|'new', item, rowSpan, colSpan, grabRow, grabCol, ok, rect }
 
 export function initRack(elements) {
   rackEl = elements.rackEl;
   rulerEl = elements.rulerEl;
+  powerEl = elements.powerEl;
+  gaugeEl = elements.gaugeEl;
+  fillEl = elements.fillEl;
+  readEl = elements.readEl;
 
   rackEl.addEventListener("pointerdown", onRackPointerDown);
   window.addEventListener("pointermove", onPointerMove);
@@ -195,12 +203,40 @@ function place(el, rect, rows) {
   el.style.width = `calc(${(rect.colSpan / COLS) * 100}% - 4px)`;
 }
 
+/**
+ * the power gauge that stands beside the rack — total draw filling from the
+ * bottom against the whole-rack budget. over budget the fill pins at 100% and
+ * goes coral rather than growing past the top, so "how far over" stays a number
+ * and the bar stays a bar.
+ */
+function renderPower(d) {
+  const pct = d.budgetW ? Math.min(100, d.pct) : 0;
+  fillEl.style.height = `${pct}%`;
+  powerEl.className = `powerbar ${d.powerLevel}${d.budgetW ? "" : " is-idle"}`;
+  readEl.textContent = d.budgetW
+    ? `${d.watts}w / ${d.budgetW}w`
+    : `${d.watts}w`;
+  gaugeEl.setAttribute("aria-valuenow", String(d.watts));
+  gaugeEl.setAttribute("aria-valuemax", String(d.budgetW || d.watts || 1));
+  gaugeEl.setAttribute(
+    "aria-valuetext",
+    d.budgetW
+      ? `${d.watts} of ${d.budgetW} watts, ${Math.round(d.pct)}%`
+      : `${d.watts} watts, no budget set`,
+  );
+  powerEl.title = d.budgetW
+    ? `${d.watts}w drawn of a ${d.budgetW}w rack budget · ${d.headroomW}w headroom`
+    : `${d.watts}w drawn · set a rack power budget to see headroom`;
+}
+
 export function render() {
   const chassis = chassisById(state.chassisId);
   const rows = rackRows();
-  const { conflicts } = derived();
+  const d = derived();
+  const { conflicts } = d;
 
   rackEl.style.height = `calc(${chassis.u} * var(--u-h))`;
+  renderPower(d);
 
   // ruler: U1 at the bottom (the column is reversed in css)
   rulerEl.replaceChildren(

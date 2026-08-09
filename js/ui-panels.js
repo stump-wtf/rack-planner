@@ -12,7 +12,7 @@ import {
   collectionById,
 } from "./model.js";
 import { uLabelFor } from "./grid.js";
-import { state, commit, derived } from "./state.js";
+import { state, commit, derived, endEditRun } from "./state.js";
 import { beginNewDrag, addFromCatalog } from "./ui-rack.js";
 import { fmtU } from "./export.js";
 import {
@@ -32,6 +32,13 @@ export function initPanels(elements) {
   paletteEl = elements.paletteEl;
   inspectorEl = elements.inspectorEl;
   toast = elements.toast;
+
+  // leaving a field ends its undo run. the container outlives every re-render,
+  // and focusout bubbles, so this survives the inspector being rebuilt — but a
+  // focusout caused BY that rebuild is not the user leaving, so ignore it.
+  inspectorEl.addEventListener("focusout", () => {
+    if (!building) endEditRun();
+  });
 }
 
 function el(tag, props = {}, children = []) {
@@ -243,7 +250,7 @@ function customForm() {
     ]),
     el("div", { class: "row2" }, [
       el("div", {}, [el("label", { text: "depth mm" }), depth]),
-      el("div", {}, [el("label", { text: "watts" }), watts]),
+      el("div", {}, [el("label", { text: "draw (w)" }), watts]),
     ]),
     el("label", { text: "colour" }),
     swatchRow,
@@ -253,7 +260,90 @@ function customForm() {
 
 // ── inspector ──────────────────────────────────────────────────────────────
 
+/**
+ * A number box that writes through on every keystroke.
+ *
+ * `change` alone is not enough: it fires on blur, so typing a value and hitting
+ * enter — or just typing it and looking at the rack — left the box showing your
+ * number while the state kept the old one. Committing on `input` fixes that,
+ * at the price of re-rendering the inspector mid-word; `field` is what
+ * renderInspector uses to put the caret back, and `coalesce` keeps the whole
+ * run to a single undo entry.
+ */
+function numberField(field, value, apply, attrs = {}) {
+  return el("input", {
+    type: "number",
+    min: "0",
+    step: "1",
+    "data-field": field,
+    ...attrs,
+    value: String(value),
+    oninput: (ev) => apply(Math.max(0, Number(ev.target.value) || 0)),
+  });
+}
+
+/**
+ * The inspector is a full re-render, so a field that commits per keystroke gets
+ * torn out from under the caret. Remember which field had focus, what raw text
+ * was in it and where the caret sat, then restore all three on the fresh node.
+ *
+ * The raw text matters: state holds a parsed number, so an emptied box would
+ * come back as "0" and the next digit would land after it.
+ */
+function renderKeepingFocus(container, kids) {
+  const prev = document.activeElement;
+  const field = container.contains(prev) ? prev.dataset.field : null;
+  const text = field ? prev.value : null;
+  // number inputs throw on selectionStart — they have no caret worth keeping
+  let caret = null;
+  try {
+    if (field) caret = [prev.selectionStart, prev.selectionEnd];
+  } catch {
+    caret = null;
+  }
+
+  container.replaceChildren(...kids);
+
+  if (!field) return;
+  const next = container.querySelector(`[data-field="${field}"]`);
+  if (!next) return;
+  next.value = text;
+  next.focus();
+  try {
+    if (caret) next.setSelectionRange(caret[0], caret[1]);
+  } catch {
+    /* number input — nothing to restore */
+  }
+}
+
+/**
+ * Removing a dirty input fires its `change`, whose handler commits and calls us
+ * again — from inside our own replaceChildren, which then throws because the
+ * children moved underneath it. Collapse the nested call into a re-run once the
+ * outer one has finished, capped so a handler that always dirties something
+ * cannot spin.
+ */
+let building = false;
+let buildAgain = false;
+
 export function renderInspector() {
+  if (building) {
+    buildAgain = true;
+    return;
+  }
+  building = true;
+  try {
+    for (let pass = 0; pass < 3; pass++) {
+      buildAgain = false;
+      buildInspector();
+      if (!buildAgain) break;
+    }
+  } finally {
+    building = false;
+  }
+}
+
+function buildInspector() {
   const d = derived();
   const chassis = chassisById(state.chassisId);
   const sel = state.items.find((i) => i.id === state.selectedId);
@@ -283,39 +373,51 @@ export function renderInspector() {
   );
   kids.push(depthSel);
 
-  // power
-  kids.push(el("label", { text: "power budget (w)" }));
+  // power — one budget for the whole rack, measured against every device's draw
+  kids.push(el("label", { text: "power budget — whole rack (w)" }));
   kids.push(
-    el("input", {
-      type: "number",
-      min: "0",
-      step: "10",
-      value: String(state.budgetW),
-      onchange: (ev) =>
-        commit((s) => (s.budgetW = Number(ev.target.value) || 0)),
-    }),
+    numberField(
+      "budget",
+      d.budgetW,
+      (v) => commit((s) => (s.budgetW = v), { coalesce: "budget" }),
+      { step: "10" },
+    ),
   );
-  const pct =
-    state.budgetW > 0 ? Math.min(100, (d.watts / state.budgetW) * 100) : 0;
-  const level = d.overBudget ? "is-bad" : pct > 80 ? "is-warn" : "";
   kids.push(
-    el("div", { class: `meter ${level}` }, [
-      el("i", { style: { width: `${pct}%` } }),
+    el("div", { class: `meter ${d.powerLevel}` }, [
+      el("i", { style: { width: `${Math.min(100, d.pct)}%` } }),
     ]),
   );
   kids.push(
     stat(
-      "draw",
-      `${d.watts}w${state.budgetW ? ` / ${state.budgetW}w` : ""}`,
-      level,
+      "total draw",
+      `${d.watts}w${d.budgetW ? ` / ${d.budgetW}w` : ""}`,
+      d.powerLevel,
     ),
+  );
+  if (d.budgetW) {
+    kids.push(
+      stat(
+        "headroom",
+        `${d.headroomW}w`,
+        d.headroomW < 0 ? "is-bad" : d.powerLevel,
+      ),
+    );
+  }
+  kids.push(
+    el("div", {
+      class: "hint",
+      text: d.budgetW
+        ? `sum of all ${state.items.length} device${state.items.length === 1 ? "" : "s"}. set a device's draw under ❯ selected.`
+        : "set a budget to size the gauge beside the rack.",
+    }),
   );
 
   if (d.overBudget) {
     kids.push(
       el("div", {
         class: "alert",
-        text: `⚠ over budget by ${d.watts - state.budgetW}w`,
+        text: `⚠ over budget by ${d.watts - d.budgetW}w`,
       }),
     );
   }
@@ -349,48 +451,46 @@ export function renderInspector() {
     kids.push(...selectionFields(sel));
   }
 
-  inspectorEl.replaceChildren(...kids);
+  renderKeepingFocus(inspectorEl, kids);
 }
 
 function selectionFields(sel) {
-  const patch = (fn) =>
-    commit((s) => {
-      const it = s.items.find((i) => i.id === sel.id);
-      if (it) fn(it);
-    });
+  const patch = (fn, coalesce) =>
+    commit(
+      (s) => {
+        const it = s.items.find((i) => i.id === sel.id);
+        if (it) fn(it);
+      },
+      { coalesce },
+    );
 
   const fields = [
     el("label", { text: "name" }),
     el("input", {
       type: "text",
-      // onchange, not oninput: a full inspector re-render per keystroke would
-      // steal focus mid-word and push one undo entry per letter.
+      "data-field": "name",
       value: sel.name,
-      onchange: (ev) =>
-        patch((it) => (it.name = ev.target.value.toLowerCase())),
+      oninput: (ev) =>
+        patch(
+          (it) => (it.name = ev.target.value.toLowerCase()),
+          `name:${sel.id}`,
+        ),
     }),
     el("div", { class: "row2" }, [
       el("div", {}, [
         el("label", { text: "depth mm" }),
-        el("input", {
-          type: "number",
-          min: "0",
-          step: "5",
-          value: String(sel.depthMm || 0),
-          onchange: (ev) =>
-            patch((it) => (it.depthMm = Number(ev.target.value) || 0)),
-        }),
+        numberField(
+          "depth",
+          sel.depthMm || 0,
+          (v) => patch((it) => (it.depthMm = v), `depth:${sel.id}`),
+          { step: "5" },
+        ),
       ]),
       el("div", {}, [
-        el("label", { text: "watts" }),
-        el("input", {
-          type: "number",
-          min: "0",
-          step: "1",
-          value: String(sel.watts || 0),
-          onchange: (ev) =>
-            patch((it) => (it.watts = Number(ev.target.value) || 0)),
-        }),
+        el("label", { text: "draw (w)" }),
+        numberField("watts", sel.watts || 0, (v) =>
+          patch((it) => (it.watts = v), `watts:${sel.id}`),
+        ),
       ]),
     ]),
     el("label", { text: "icon" }),

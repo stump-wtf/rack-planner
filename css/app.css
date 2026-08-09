@@ -55,7 +55,8 @@ body {
 body {
   margin: 0;
   background: var(--bg-void);
-  background-image: linear-gradient(var(--grid-tron) 1px, transparent 1px),
+  background-image:
+    linear-gradient(var(--grid-tron) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid-tron) 1px, transparent 1px);
   background-size: 32px 32px;
   color: var(--text-body);
@@ -399,7 +400,8 @@ select:focus {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: repeating-linear-gradient(
+  background-image:
+    repeating-linear-gradient(
       to top,
       transparent 0,
       transparent calc(var(--u-h) - 1px),
@@ -423,6 +425,133 @@ select:focus {
   width: 0;
   border-left: 1px dashed var(--line-dim);
   pointer-events: none;
+}
+
+/* ── power gauge ─────────────────────────────────────────────────────── */
+
+/* stands to the right of the rack and stretches to its full height, so the
+   fill reads as "how much of the rack's budget is spent" at a glance */
+.powerbar {
+  display: flex;
+  gap: 6px;
+  flex: none;
+  /* it sits right beside the rack — a stray drag must not select the readout */
+  user-select: none;
+  --gauge: var(--neon-mint);
+  --gauge-hi: var(--neon-cyan);
+}
+
+.powerbar__gauge {
+  position: relative;
+  width: 22px;
+  flex: none;
+  background: var(--bg-inset);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
+}
+
+/* quarter marks, so a glance gives you roughly where you are without the text */
+.powerbar__ticks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  /* translucent rather than a flat colour, so the marks read against the empty
+     track and against a bright fill alike */
+  background-image: repeating-linear-gradient(
+    to top,
+    transparent 0,
+    transparent calc(25% - 1px),
+    rgba(10, 10, 20, 0.65) calc(25% - 1px),
+    rgba(10, 10, 20, 0.65) 25%
+  );
+}
+
+.powerbar__fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  background: linear-gradient(to top, var(--gauge), var(--gauge-hi));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--gauge) 55%, transparent);
+  transition: height 0.18s ease-out;
+}
+/* the bright lip at the top of the fill — reads as a level, not a block */
+.powerbar__fill::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: var(--text-bright);
+  opacity: 0.85;
+}
+
+.powerbar__spark {
+  position: absolute;
+  top: 3px;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  text-align: center;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--gauge);
+  text-shadow: 0 0 3px var(--bg-void);
+  pointer-events: none;
+}
+
+/* reads bottom-to-top alongside the bar, so the column stays narrow */
+.powerbar__read {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--gauge);
+  align-self: flex-end;
+  white-space: nowrap;
+}
+
+.powerbar.is-warn {
+  --gauge: var(--neon-gold);
+  --gauge-hi: var(--neon-gold);
+}
+.powerbar.is-bad {
+  --gauge: var(--neon-coral);
+  --gauge-hi: var(--neon-coral);
+}
+/* over budget: the fill is pinned at 100%, so pulse it rather than let it sit
+   there looking like a comfortably full bar */
+.powerbar.is-bad .powerbar__fill {
+  animation: gauge-alarm 1.1s ease-in-out infinite;
+}
+@keyframes gauge-alarm {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* no budget set — nothing to fill against, so stay quiet and just show draw */
+.powerbar.is-idle {
+  --gauge: var(--text-dim);
+  --gauge-hi: var(--text-dim);
+}
+.powerbar.is-idle .powerbar__fill {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .powerbar__fill {
+    transition: none;
+  }
+  .powerbar.is-bad .powerbar__fill {
+    animation: none;
+  }
 }
 
 .dev {
@@ -587,8 +716,15 @@ select:focus {
     border: none;
     border-top: 1px solid var(--line-dim);
   }
+  /* leave room for the ruler, the gauge and the stage padding, or the gauge
+     lands off the right edge and the whole stage scrolls sideways */
   .rack {
-    width: min(440px, 88vw);
+    width: min(440px, calc(100vw - 96px));
+  }
+  /* the vertical readout is the first thing to go — the inspector says the
+     same numbers, and the bar still reads at a glance */
+  .powerbar__read {
+    display: none;
   }
 }
 

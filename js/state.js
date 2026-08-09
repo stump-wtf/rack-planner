@@ -29,6 +29,9 @@ export const state = {
 const listeners = new Set();
 let undoStack = [];
 let redoStack = [];
+let coalesceKey = null;
+
+const DEFAULTS = { chassisId: "8u", depthMm: 260, budgetW: 300 };
 
 export function subscribe(fn) {
   listeners.add(fn);
@@ -49,12 +52,17 @@ function snapshot() {
   });
 }
 
+/**
+ * a snapshot written by an older build can be missing a field entirely, and an
+ * undefined budget renders as "undefined" in a number input and a dead meter —
+ * which reads as a broken widget rather than as missing data. fall back.
+ */
 function restore(json) {
   const s = JSON.parse(json);
-  state.chassisId = s.chassisId;
-  state.depthMm = s.depthMm;
-  state.budgetW = s.budgetW;
-  state.items = s.items;
+  state.chassisId = s.chassisId ?? DEFAULTS.chassisId;
+  state.depthMm = Number(s.depthMm) || DEFAULTS.depthMm;
+  state.budgetW = Number(s.budgetW) || 0;
+  state.items = s.items ?? [];
   if (!state.items.some((i) => i.id === state.selectedId))
     state.selectedId = null;
 }
@@ -62,25 +70,43 @@ function restore(json) {
 /**
  * mutate, then push the PREVIOUS state onto the undo stack. pass
  * {undoable:false} for things like selection that should not cost a Cmd-Z.
+ *
+ * `coalesce` names an edit run — a field key like `watts:d3f`. consecutive
+ * commits sharing a key push only one undo entry, so typing "250" into a box
+ * that commits per keystroke costs one Cmd-Z, not three. any other commit in
+ * between (a different field, a selection, a drop) ends the run.
  */
-export function commit(mutator, { undoable = true } = {}) {
+export function commit(mutator, { undoable = true, coalesce = null } = {}) {
   const before = undoable ? snapshot() : null;
   mutator(state);
   if (undoable) {
     if (snapshot() !== before) {
-      undoStack.push(before);
-      if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+      if (!coalesce || coalesce !== coalesceKey) {
+        undoStack.push(before);
+        if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+      }
       redoStack = [];
     }
   }
+  coalesceKey = coalesce;
   save();
   emit();
+}
+
+/**
+ * end the current coalesced edit run, so the next keystroke starts a fresh undo
+ * entry. call it when a field loses focus — otherwise two separate visits to
+ * the same box merge into one Cmd-Z.
+ */
+export function endEditRun() {
+  coalesceKey = null;
 }
 
 export function undo() {
   if (!undoStack.length) return false;
   redoStack.push(snapshot());
   restore(undoStack.pop());
+  coalesceKey = null;
   save();
   emit();
   return true;
@@ -90,6 +116,7 @@ export function redo() {
   if (!redoStack.length) return false;
   undoStack.push(snapshot());
   restore(redoStack.pop());
+  coalesceKey = null;
   save();
   emit();
   return true;
@@ -124,9 +151,9 @@ export function loadSaved() {
 /** replace everything — used by share-link load and json import. */
 export function loadLayout(layout) {
   commit((s) => {
-    s.chassisId = layout.chassisId;
-    s.depthMm = layout.depthMm;
-    s.budgetW = layout.budgetW;
+    s.chassisId = layout.chassisId ?? DEFAULTS.chassisId;
+    s.depthMm = Number(layout.depthMm) || DEFAULTS.depthMm;
+    s.budgetW = Number(layout.budgetW) || 0;
     s.items = layout.items.map((i) => ({ ...i, id: i.id || nextId() }));
     s.selectedId = null;
   });
@@ -155,14 +182,24 @@ export function rectsExcept(id) {
 export function derived() {
   const rows = rackRows();
   const rects = state.items.map(rectOf);
+  // the budget is for the whole rack: every device's draw, summed
   const watts = state.items.reduce((n, i) => n + (Number(i.watts) || 0), 0);
+  const budgetW = Math.max(0, Number(state.budgetW) || 0);
+  const overBudget = budgetW > 0 && watts > budgetW;
+  const pct = budgetW > 0 ? (watts / budgetW) * 100 : 0;
   const tooDeep = state.items.filter((i) => Number(i.depthMm) > state.depthMm);
   return {
     rows,
     freeU: freeU(rows, rects),
     usedU: chassisById(state.chassisId).u - freeU(rows, rects),
     watts,
-    overBudget: state.budgetW > 0 && watts > state.budgetW,
+    budgetW,
+    overBudget,
+    pct,
+    // one place decides the thresholds, so the inspector meter and the rack
+    // gauge can never disagree about what counts as "getting close"
+    powerLevel: overBudget ? "is-bad" : pct > 80 ? "is-warn" : "",
+    headroomW: budgetW > 0 ? budgetW - watts : null,
     tooDeep,
     conflicts: findConflicts(rects),
   };

@@ -43,7 +43,14 @@ const toast = Object.assign(document.createElement("div"), {
 });
 document.body.appendChild(toast);
 
-initRack({ rackEl, rulerEl });
+initRack({
+  rackEl,
+  rulerEl,
+  powerEl: $("power"),
+  gaugeEl: $("power-gauge"),
+  fillEl: $("power-fill"),
+  readEl: $("power-read"),
+});
 initPanels({ paletteEl: $("palette"), inspectorEl: $("inspector"), toast });
 
 // ── chassis switcher ───────────────────────────────────────────────────────

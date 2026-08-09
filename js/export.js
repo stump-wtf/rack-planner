@@ -50,7 +50,9 @@ export function toSvg(state, { title = "rack plan", icons = new Map() } = {}) {
     `<text x="${PAD}" y="${PAD + 18}" fill="${TEXT}" font-size="15" font-weight="700">${esc(title)}</text>`,
   );
   const watts = state.items.reduce((n, i) => n + (Number(i.watts) || 0), 0);
-  const sub = `${chassis.u}u · 10" · ${state.depthMm}mm deep · ${state.items.length} device${state.items.length === 1 ? "" : "s"} · ${watts}w`;
+  const budgetW = Math.max(0, Number(state.budgetW) || 0);
+  const power = budgetW ? `${watts}w of ${budgetW}w` : `${watts}w`;
+  const sub = `${chassis.u}u · 10" · ${state.depthMm}mm deep · ${state.items.length} device${state.items.length === 1 ? "" : "s"} · ${power}`;
   parts.push(
     `<text x="${PAD}" y="${PAD + 36}" fill="${MUTED}" font-size="11">${esc(sub)}</text>`,
   );
