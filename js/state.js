@@ -9,8 +9,10 @@ import {
   freeU,
 } from "./grid.js";
 import { chassisById } from "./model.js";
+import { loadLibrary, saveLibrary, getActive, setActive } from "./designs.js";
 
 const KEY = "rackplanner.v1";
+export { KEY as LEGACY_KEY };
 const UNDO_LIMIT = 60;
 
 let seq = 0;
@@ -32,6 +34,7 @@ let redoStack = [];
 let coalesceKey = null;
 
 const DEFAULTS = { chassisId: "8u", depthMm: 260, budgetW: 300 };
+export { DEFAULTS };
 
 export function subscribe(fn) {
   listeners.add(fn);
@@ -130,18 +133,27 @@ export function canRedo() {
 }
 
 function save() {
+  // route through the designs store: update the active design's layout and
+  // bump its updatedAt. swallow quota / private-mode errors the way the old
+  // single-key save did — the url share is the real persistence story.
   try {
-    localStorage.setItem(KEY, snapshot());
+    const lib = loadLibrary();
+    const d = lib.designs.find((d) => d.id === lib.activeId);
+    if (d) {
+      d.layout = JSON.parse(snapshot());
+      d.updatedAt = Date.now();
+      saveLibrary(lib);
+    }
   } catch {
-    /* private mode / quota — the url share is the real persistence story */
+    /* private mode / quota */
   }
 }
 
 export function loadSaved() {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return false;
-    restore(raw);
+    const d = getActive();
+    if (!d) return false;
+    restore(JSON.stringify(d.layout));
     return true;
   } catch {
     return false;
@@ -157,6 +169,25 @@ export function loadLayout(layout) {
     s.items = layout.items.map((i) => ({ ...i, id: i.id || nextId() }));
     s.selectedId = null;
   });
+}
+
+/**
+ * switch to a different design in the library. loads its layout, resets
+ * selection, and clears the undo/redo stacks — undoing across a design switch
+ * would silently rewrite a different rack, which is a data-loss bug, not a
+ * nicety. leaves the stacks in the same clean state loadLayout does.
+ */
+export function switchDesign(id) {
+  setActive(id);
+  const d = getActive();
+  if (!d) return;
+  restore(JSON.stringify(d.layout));
+  state.selectedId = null;
+  undoStack = [];
+  redoStack = [];
+  coalesceKey = null;
+  save();
+  emit();
 }
 
 // ── derived ────────────────────────────────────────────────────────────────
