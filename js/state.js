@@ -45,8 +45,12 @@ function emit() {
   for (const fn of listeners) fn(state);
 }
 
-/** the persisted slice — selection and transient drag state stay out of it. */
-function snapshot() {
+/**
+ * the persisted slice — selection and transient drag state stay out of it.
+ * exported so app.js can tell whether the layout still matches the one its
+ * share link encodes, without duplicating the shape and letting it drift.
+ */
+export function snapshot() {
   return JSON.stringify({
     chassisId: state.chassisId,
     depthMm: state.depthMm,

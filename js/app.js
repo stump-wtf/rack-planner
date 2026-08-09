@@ -15,6 +15,7 @@ import {
   loadLayout,
   rectOf,
   nextId,
+  snapshot,
 } from "./state.js";
 import {
   initRack,
@@ -128,11 +129,36 @@ $("clear").addEventListener("click", () => {
   say("rack cleared — cmd+z to undo");
 });
 
+/**
+ * The layout the URL fragment stands for, as of the moment it was put there —
+ * or null when the URL carries no layout.
+ *
+ * A fragment is a frozen snapshot, but boot() prefers it over the saved design.
+ * So once you shared a link (or opened someone's) and then changed anything,
+ * a refresh silently reverted the change AND wrote the stale layout over your
+ * saved design: edit a device's draw, reload, and both the number on screen and
+ * the one in localStorage were back to what they had been at share time.
+ *
+ * Rather than stop putting the link in the address bar — being able to see and
+ * copy it is the point — drop it the moment it stops describing what is on
+ * screen. Compared against the same snapshot() the store persists, so the two
+ * cannot disagree about what counts as a change. Selecting a device is not a
+ * change, so the link survives a click on the way to copying it.
+ */
+let urlLayout = null;
+
+function dropStaleHash() {
+  if (urlLayout === null || snapshot() === urlLayout) return;
+  urlLayout = null;
+  history.replaceState(null, "", location.pathname + location.search);
+}
+
 $("share").addEventListener("click", async () => {
   try {
     const hash = await encode(state);
     const url = `${location.origin}${location.pathname}#${hash}`;
     history.replaceState(null, "", `#${hash}`);
+    urlLayout = snapshot();
     try {
       await navigator.clipboard.writeText(url);
       say("link copied to the clipboard");
@@ -251,6 +277,7 @@ document.addEventListener("paste", (ev) => {
 // ── render loop ────────────────────────────────────────────────────────────
 
 function renderAll() {
+  dropStaleHash();
   renderChassis();
   renderDesignsBar();
   renderRack();
@@ -270,6 +297,9 @@ async function boot() {
   if (hash) {
     try {
       loadLayout(await decode(hash));
+      // the link describes what is on screen right now, so it stays in the bar
+      // until the first edit — see dropStaleHash
+      urlLayout = snapshot();
       say("layout loaded from link");
     } catch (err) {
       say(`that link is not a layout: ${err.message}`);
