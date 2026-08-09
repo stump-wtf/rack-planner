@@ -55,8 +55,7 @@ body {
 body {
   margin: 0;
   background: var(--bg-void);
-  background-image:
-    linear-gradient(var(--grid-tron) 1px, transparent 1px),
+  background-image: linear-gradient(var(--grid-tron) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid-tron) 1px, transparent 1px);
   background-size: 32px 32px;
   color: var(--text-body);
@@ -400,8 +399,7 @@ select:focus {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image:
-    repeating-linear-gradient(
+  background-image: repeating-linear-gradient(
       to top,
       transparent 0,
       transparent calc(var(--u-h) - 1px),
