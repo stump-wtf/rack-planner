@@ -589,14 +589,17 @@ select:focus {
   inset: 0;
   pointer-events: none;
   z-index: 2;
-  /* translucent rather than a flat colour, so the marks read against the empty
-     track and against a bright fill alike */
+  /* A mid-tone, so the marks read against the empty track AND against a bright
+     fill. They used to be rgba(10, 10, 20, .65) — which is --bg-inset, the
+     track's own colour — so three of the four were invisible and only the one
+     crossing the fill showed. That reads as a stray line through the bar
+     rather than as a scale. Lighter than the track, darker than the fill. */
   background-image: repeating-linear-gradient(
     to top,
     transparent 0,
     transparent calc(25% - 1px),
-    rgba(10, 10, 20, 0.65) calc(25% - 1px),
-    rgba(10, 10, 20, 0.65) 25%
+    rgba(130, 130, 175, 0.5) calc(25% - 1px),
+    rgba(130, 130, 175, 0.5) 25%
   );
 }
 
