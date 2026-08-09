@@ -150,6 +150,11 @@ jobs:
       # which is worse than no deploy job at all: main goes green while the host
       # still runs the old image. Wait for the run this job started and adopt
       # its conclusion.
+      #
+      # The run we want is the FIRST dispatch above before_id, not the last:
+      # ours is the next id issued after the snapshot, so a dispatch fired
+      # while we were waiting would otherwise hijack the poll and we would
+      # report someone else's converge as this deploy's result.
       - name: Wait for the converge to finish
         if: ${{ env.DISPATCH != '' }}
         run: |
@@ -161,7 +166,7 @@ jobs:
               | jq -c --argjson before "$before_id" '
                   [ .workflow_runs[]
                     | select(.event == "workflow_dispatch" and .id > $before) ]
-                  | sort_by(.id) | last // empty
+                  | sort_by(.id) | first // empty
                 ')
             [ -n "$run" ] || { echo "no run visible yet…"; continue; }
 
