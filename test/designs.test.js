@@ -128,6 +128,31 @@ test("a missing store yields a fresh library with one empty design", () => {
   });
 });
 
+test("a seeded library is written down, so two loads agree on the active id", () => {
+  const store = makeStore();
+
+  withStore(store, () => {
+    const first = loadLibrary();
+    const second = loadLibrary();
+    assert.equal(second.activeId, first.activeId);
+    assert.notEqual(store.getItem("rackplanner.designs.v1"), null);
+  });
+});
+
+test("the active design of a never-written store is real enough to clone", () => {
+  const store = makeStore();
+
+  withStore(store, () => {
+    // a fresh browser: nothing has been committed yet, so the only design is
+    // the seeded one. duplicating it must not silently no-op because the id
+    // the UI is holding was never persisted.
+    const active = getActive();
+    const copy = cloneDesign(active.id);
+    assert.notEqual(copy, null);
+    assert.equal(renameDesign(active.id, "kept").name, "kept");
+  });
+});
+
 test("cloneDesign gives every item a fresh id", () => {
   const store = makeStore();
   withStore(store, () => {

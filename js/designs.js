@@ -58,8 +58,10 @@ export function loadLibrary() {
   try {
     const raw = localStorage.getItem(LIBRARY_KEY);
     if (raw) {
-      const lib = JSON.parse(raw);
-      return normalize(lib);
+      const lib = normalize(JSON.parse(raw));
+      // null means the stored object was unusable — fall through and seed,
+      // rather than handing back a library that is never written down.
+      if (lib) return lib;
     }
   } catch {
     // fall through to migration / empty
@@ -101,7 +103,13 @@ export function loadLibrary() {
     // fall through to empty
   }
 
-  return emptyLibrary();
+  // seed and persist. an unsaved empty library would mint a brand new id on
+  // every load, so two reads before the first write would disagree about which
+  // design is active — and the first createDesign() would leave a phantom
+  // "untitled rack" nobody asked for beside the one it made.
+  const lib = emptyLibrary();
+  saveLibrary(lib);
+  return lib;
 }
 
 /** persist the library. swallows quota / private-mode errors — same contract
@@ -115,14 +123,13 @@ export function saveLibrary(lib) {
 }
 
 /**
- * coerce an unknown JSON object into a valid library. if anything is wrong we
- * return a fresh empty one rather than repairing in place — a half-parsed
- * store is worse than none, because it looks loaded.
+ * coerce an unknown JSON object into a valid library, or null when it is not
+ * one — the caller seeds a fresh library rather than repairing in place, since
+ * a half-parsed store is worse than none, because it looks loaded.
  */
 function normalize(lib) {
-  if (!lib || typeof lib !== "object") return emptyLibrary();
-  if (!Array.isArray(lib.designs) || lib.designs.length === 0)
-    return emptyLibrary();
+  if (!lib || typeof lib !== "object") return null;
+  if (!Array.isArray(lib.designs) || lib.designs.length === 0) return null;
 
   const designs = lib.designs
     .filter((d) => d && typeof d === "object" && d.id)
@@ -134,7 +141,7 @@ function normalize(lib) {
       layout: normalizeLayout(d.layout),
     }));
 
-  if (designs.length === 0) return emptyLibrary();
+  if (designs.length === 0) return null;
 
   const ids = new Set(designs.map((d) => d.id));
   const activeId = ids.has(lib.activeId) ? lib.activeId : designs[0].id;
@@ -285,7 +292,10 @@ export function setActive(id) {
 }
 
 export function getActive() {
-  return getDesign(loadLibrary().activeId);
+  // one read, not two — this runs on every render, and getDesign() would parse
+  // the whole library a second time to find what we already have in hand.
+  const lib = loadLibrary();
+  return lib.designs.find((d) => d.id === lib.activeId) ?? null;
 }
 
 /** dedupe "x copy" → "x copy 2" when "x copy" already exists. */

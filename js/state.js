@@ -186,7 +186,10 @@ export function switchDesign(id) {
   undoStack = [];
   redoStack = [];
   coalesceKey = null;
-  save();
+  // no save() — setActive() already wrote which design is active, and the
+  // layout we just restored came straight out of the store unchanged. saving
+  // here would bump updatedAt, so merely looking at an old design would jump
+  // it to the top of a list that sorts on it.
   emit();
 }
 
