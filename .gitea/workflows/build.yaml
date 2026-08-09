@@ -10,6 +10,11 @@
 # provision this repo's REGISTRY_TOKEN — like cairn and switchboard, a stump.wtf
 # repo sets that secret by hand. Every registry step is guarded on it so the
 # workflow skips green until it exists rather than failing red on every push.
+# (REGISTRY_TOKEN is in fact inherited from the stump.wtf org, so the guard is
+# belt-and-braces rather than the thing keeping the lane inert.)
+#
+# On merge to main the deploy job converges pie02 by dispatching
+# stumpcloud/ansible's CI. See that job for why it does not SSH to the host.
 
 name: build
 
@@ -87,45 +92,95 @@ jobs:
           cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max
 
   deploy:
-    name: deploy to ie01 (ansible)
+    name: deploy to pie02 (dispatch ansible)
     needs: [image]
-    # Opt-in, and inert until the repo variable DEPLOY_ON_MERGE is set to true.
+    # The image job publishes :latest; this converges pie02 so the host actually
+    # picks it up. Without it a merge here changes nothing in production until
+    # something unrelated happens to converge the service.
     #
-    # This also needs ie01 to have a CI deploy AppRole and SSH key, which it does
-    # NOT yet — ci-deploy-approle.yaml and ci-deploy-key.yaml have only ever been
-    # run for cloud01. Until then, merging the playbook to stumpcloud/ansible is
-    # what actually converges this service (its converge-apps lane covers it).
-    if: ${{ vars.DEPLOY_ON_MERGE == 'true' && gitea.event_name == 'push' && gitea.ref == 'refs/heads/main' }}
+    # It dispatches stumpcloud/ansible's own CI rather than SSHing to the host
+    # itself. That repo's dispatch lane already holds the OpenBao AppRole, the
+    # SSH key and the Route53 credentials a service converge needs, and it is
+    # already audited. The alternative — running ci-deploy-key.yaml and
+    # ci-deploy-approle.yaml for pie02 and holding the results here — would put
+    # a passwordless-sudo key for an OpenBao Raft voter in this repo's secrets,
+    # and ansible-runner passes no --limit, so that key reaches the whole
+    # inventory. Not worth it to redeploy a static site.
+    #
+    # Guarded on the token so an unprovisioned fork skips green rather than
+    # failing red on every merge, the same way the image job guards on REG.
+    if: ${{ gitea.event_name == 'push' && gitea.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     env:
-      ANSIBLE_FORCE_COLOR: "true"
-      DOCKER_TIMEOUT: 600
-      # AppRole, not a static token: a static VAULT_TOKEN in a repo secret cannot
-      # re-authenticate, dies at max-TTL, and takes every later deploy with it.
-      VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
-      VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
+      DISPATCH: ${{ secrets.ANSIBLE_DISPATCH_TOKEN }}
+      ANSIBLE_REPO: stumpcloud/ansible
+      API: https://gitea.stump.rocks/api/v1
     steps:
-      # No token: stumpcloud/ansible is public, and an empty GIT_AUTH_TOKEN is
-      # worse than none.
-      - name: Checkout stumpcloud/ansible (playbooks + inventory)
-        uses: actions/checkout@v4
-        with:
-          repository: stumpcloud/ansible
-          ref: main
+      - name: Dispatch the rack-planner converge
+        if: ${{ env.DISPATCH != '' }}
+        run: |
+          set -euo pipefail
+          # Highest dispatch run id BEFORE we fire, so the poll below can tell
+          # our run from one that was already there. Gitea's runs API returns no
+          # created_at, so ids are the only ordering signal available.
+          before=$(curl -sS "$API/repos/$ANSIBLE_REPO/actions/runs" \
+            -H "Authorization: token $DISPATCH" \
+            | jq '[.workflow_runs[] | select(.event == "workflow_dispatch") | .id] | max // 0')
+          echo "before_id=$before" >> "$GITHUB_ENV"
+          echo "latest dispatch run before ours: $before"
 
-      - name: Log in to Gitea (pull the ansible-runner action image)
-        uses: docker/login-action@v3
-        with:
-          registry: gitea.stump.rocks
-          username: joestump-agent
-          password: ${{ secrets.REGISTRY_TOKEN }}
+          code=$(curl -sS -o /tmp/dispatch.out -w '%{http_code}' \
+            -X POST "$API/repos/$ANSIBLE_REPO/actions/workflows/ci.yaml/dispatches" \
+            -H "Authorization: token $DISPATCH" \
+            -H 'Content-Type: application/json' \
+            -d '{
+                  "ref": "main",
+                  "inputs": {
+                    "playbook": "rack-planner",
+                    "inventory": "dub.yaml",
+                    "ssh_hosts": "pie02.stump.rocks"
+                  }
+                }')
+          if [ "$code" != "204" ] && [ "$code" != "201" ] && [ "$code" != "200" ]; then
+            echo "dispatch failed with HTTP $code:"; cat /tmp/dispatch.out; exit 1
+          fi
+          echo "dispatched — https://gitea.stump.rocks/$ANSIBLE_REPO/actions"
 
-      - name: Deploy rack-planner to ie01
-        # v2.1.0 exactly: the first release where ssh_private_key is a real,
-        # delivered input. @v2 was not moved forward to it.
-        uses: https://gitea.stump.rocks/stumpcloud/ansible-runner@v2.1.0
-        with:
-          playbook: playbooks/services/rack-planner.yaml
-          inventory: dub.yaml
-          ssh_hosts: ie01.stump.rocks
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+      # A fire-and-forget dispatch reports success for a converge that failed,
+      # which is worse than no deploy job at all: main goes green while the host
+      # still runs the old image. Wait for the run this job started and adopt
+      # its conclusion.
+      - name: Wait for the converge to finish
+        if: ${{ env.DISPATCH != '' }}
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 60); do
+            sleep 20
+            run=$(curl -sS "$API/repos/$ANSIBLE_REPO/actions/runs" \
+              -H "Authorization: token $DISPATCH" \
+              | jq -c --argjson before "$before_id" '
+                  [ .workflow_runs[]
+                    | select(.event == "workflow_dispatch" and .id > $before) ]
+                  | sort_by(.id) | last // empty
+                ')
+            [ -n "$run" ] || { echo "no run visible yet…"; continue; }
+
+            status=$(echo "$run" | jq -r '.status')
+            conclusion=$(echo "$run" | jq -r '.conclusion // ""')
+            url=$(echo "$run" | jq -r '.html_url // ""')
+            echo "converge: status=$status conclusion=$conclusion $url"
+
+            [ "$status" = "completed" ] || continue
+            case "$conclusion" in
+              success) echo "pie02 converged"; exit 0 ;;
+              *) echo "converge finished $conclusion — see $url"; exit 1 ;;
+            esac
+          done
+          echo "timed out waiting for the converge; check $API/repos/$ANSIBLE_REPO/actions"
+          exit 1
+
+      - name: Report that deploy is not provisioned
+        if: ${{ env.DISPATCH == '' }}
+        run: |
+          echo "ANSIBLE_DISPATCH_TOKEN is not set — image published, host NOT converged."
+          echo "Set it to a Gitea token with write access to $ANSIBLE_REPO actions."
