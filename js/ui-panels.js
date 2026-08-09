@@ -269,16 +269,40 @@ function customForm() {
  * at the price of re-rendering the inspector mid-word; `field` is what
  * renderInspector uses to put the caret back, and `coalesce` keeps the whole
  * run to a single undo entry.
+ *
+ * It is `type="text"` with a numeric inputmode, NOT `type="number"`, and that
+ * is the whole reason typing works. The spec refuses selectionStart/
+ * setSelectionRange on a number input — reading returns null, writing throws
+ * InvalidStateError — so renderKeepingFocus below could not put the caret
+ * back after its per-keystroke re-render. The caret landed at 0 instead and
+ * every digit went in front of the last: typing 1, 2, 0, 0 into the budget
+ * produced 0021. inputmode keeps the numeric keypad on touch, and the
+ * keydown handler keeps ArrowUp/ArrowDown stepping, which is what the
+ * spinners were actually for.
  */
-function numberField(field, value, apply, attrs = {}) {
+function numberField(field, value, apply, { step = 1, ...attrs } = {}) {
+  // `step` is consumed here rather than passed through: on a text input the
+  // attribute does nothing, and the arrow keys are the only thing left that
+  // needs to know the budget nudges by 10 and a draw by 1.
+  const by = Math.max(1, Number(step) || 1);
+  const nudge = (node, dir) => {
+    const next = Math.max(0, (Number(node.value) || 0) + dir * by);
+    node.value = String(next);
+    apply(next);
+  };
   return el("input", {
-    type: "number",
-    min: "0",
-    step: "1",
+    type: "text",
+    inputmode: "numeric",
+    autocomplete: "off",
     "data-field": field,
     ...attrs,
     value: String(value),
     oninput: (ev) => apply(Math.max(0, Number(ev.target.value) || 0)),
+    onkeydown: (ev) => {
+      if (ev.key !== "ArrowUp" && ev.key !== "ArrowDown") return;
+      ev.preventDefault();
+      nudge(ev.target, ev.key === "ArrowUp" ? 1 : -1);
+    },
   });
 }
 
@@ -294,10 +318,14 @@ function renderKeepingFocus(container, kids) {
   const prev = document.activeElement;
   const field = container.contains(prev) ? prev.dataset.field : null;
   const text = field ? prev.value : null;
-  // number inputs throw on selectionStart — they have no caret worth keeping
+  // Guarded because not every input exposes a selection — a number input
+  // returns null and throws on write, which is exactly why numberField above
+  // does not use one. A null caret here means the restore below silently does
+  // nothing and the caret snaps to 0, so this staying quiet is a real hazard.
   let caret = null;
   try {
-    if (field) caret = [prev.selectionStart, prev.selectionEnd];
+    if (field && prev.selectionStart != null)
+      caret = [prev.selectionStart, prev.selectionEnd];
   } catch {
     caret = null;
   }
