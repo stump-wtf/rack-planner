@@ -29,8 +29,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npx --yes prettier@3.3.3 --check 'js/**/*.js' 'test/**/*.js' 'css/*.css' index.html
-      - run: make lint
+      # The prettier version lives in the Makefile (PRETTIER_VERSION) so local
+      # and CI cannot disagree about it. STRICT turns fmt-check's loud local
+      # skip into a hard failure here — CI must never pass without prettier.
+      - run: make lint PRETTIER_STRICT=1
 
   gitleaks:
     runs-on: ubuntu-latest
