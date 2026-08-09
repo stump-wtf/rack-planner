@@ -5,6 +5,7 @@ const sidebars: SidebarsConfig = {
     "intro",
     "grid-model",
     "catalog",
+    "designs",
     "sharing",
     "self-hosting",
   ],

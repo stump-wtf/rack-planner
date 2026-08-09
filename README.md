@@ -66,7 +66,8 @@ the whole thing on the undo stack.
 **share** puts the entire layout in the URL fragment — compact JSON, deflated
 with the native `CompressionStream` when that comes out shorter, base64url'd.
 Nothing reaches a server, there is nothing to host, and the link keeps working
-offline. Layouts also autosave to `localStorage`.
+offline. Designs autosave to `localStorage` — the library holds several named
+designs, one active at a time, and a share link is how one of them travels.
 
 **svg** / **png** export the elevation. `toSvg()` is a pure function reading the
 same model the DOM renders, so an export cannot drift from what is on screen;
@@ -79,9 +80,10 @@ PNG is that SVG through a canvas.
 | `js/grid.js` | the geometry core — snap, bounds, collision, fit. pure, and where the tests live |
 | `js/model.js` | chassis sizes, physical constants, the device catalog |
 | `js/state.js` | the store, undo/redo, autosave |
+| `js/designs.js` | the designs library — named racks in localStorage |
 | `js/share.js` | layout ⇄ url fragment |
 | `js/export.js` | `toSvg()` / `toPng()` |
-| `js/ui-*.js` | rack elevation, catalog, inspector |
+| `js/ui-*.js` | rack elevation, catalog, inspector, designs bar |
 | `js/app.js` | bootstrap, keyboard map, toolbar |
 
 ## tests

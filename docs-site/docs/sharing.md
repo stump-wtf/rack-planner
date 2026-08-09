@@ -23,8 +23,14 @@ Deflate costs more in header than it saves below a few hundred bytes. An empty
 rack encodes shorter raw, so `encode()` produces both and returns the winner.
 :::
 
-Layouts also autosave to `localStorage`, so a reload picks up where you left off.
-A link in the URL wins over the saved layout.
+Layouts also autosave to `localStorage` as the active design in your
+[library](./designs), so a reload picks up where you left off. A link in the
+URL wins over the saved design.
+
+The library is where your designs live day to day; a share link is how one of
+them travels — to another machine, another browser, or another person. The
+link carries one design, and opening it loads into the active slot rather than
+adding a new entry to the library.
 
 ## svg and png
 
