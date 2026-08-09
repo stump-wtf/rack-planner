@@ -91,6 +91,12 @@ h3 {
   background: rgba(14, 14, 26, 0.85);
   backdrop-filter: blur(8px);
   flex-wrap: wrap;
+  /* backdrop-filter opens a stacking context, so everything in here — the
+     designs popover especially — is trapped inside it. Left static, that
+     context paints below .rack, which is positioned: the popover came up
+     half-hidden behind the rack. Lift the whole bar instead. */
+  position: relative;
+  z-index: 10;
 }
 
 .wordmark {

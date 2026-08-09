@@ -8,11 +8,10 @@
 // gets torn out from under a focus.
 
 import { el, say } from "./ui-panels.js";
-import { state, switchDesign } from "./state.js";
+import { switchDesign } from "./state.js";
 import { chassisById } from "./model.js";
 import {
-  listDesigns,
-  getDesign,
+  loadLibrary,
   getActive,
   createDesign,
   cloneDesign,
@@ -79,7 +78,10 @@ function build() {
   });
   document.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape" && popover) {
-      ev.stopPropagation();
+      // app.js listens for Escape on document too, and stopPropagation does
+      // not reach a sibling listener on the same node — without the immediate
+      // form, dismissing the popover also clears the rack selection.
+      ev.stopImmediatePropagation();
       closePopover();
       dropdownBtn.focus();
     }
@@ -94,6 +96,12 @@ function build() {
  * text update, so the caret is safe while the user types.
  */
 function beginRename() {
+  // the input lives inside the name button, so a click to move the caret
+  // bubbles back here. without this guard that second click rebuilds the
+  // input from the stored name and re-selects it — throwing away whatever
+  // the user had typed so far.
+  if (nameEl.querySelector("input")) return;
+
   const d = getActive();
   if (!d) return;
 
@@ -103,6 +111,7 @@ function beginRename() {
     value: d.name,
     maxlength: "60",
     "aria-label": "design name",
+    onclick: (ev) => ev.stopPropagation(),
   });
 
   nameEl.replaceChildren(input);
@@ -153,8 +162,12 @@ function closePopover() {
 }
 
 function buildPopover() {
-  const designs = listDesigns();
-  const active = getActive();
+  // one read of the store for the whole popover. going through listDesigns()
+  // and then getDesign() per row re-parsed the entire library once per design
+  // just to count its devices.
+  const lib = loadLibrary();
+  const active = lib.designs.find((d) => d.id === lib.activeId) ?? null;
+  const designs = [...lib.designs].sort((a, b) => b.updatedAt - a.updatedAt);
 
   const kids = [
     el("button", {
@@ -185,8 +198,7 @@ function buildPopover() {
   // each design row — name, meta line, delete control. active row marked.
   for (const d of designs) {
     const isActive = active && d.id === active.id;
-    const full = getDesign(d.id);
-    const meta = metaLine(full);
+    const meta = metaLine(d);
 
     const row = el(
       "div",
@@ -221,17 +233,20 @@ function buildPopover() {
       text: "✗",
       onclick: (ev) => {
         ev.stopPropagation();
-        const target = getDesign(d.id);
-        if (target && target.layout.items.length > 0) {
-          if (
-            !confirm(
-              `delete "${d.name}" and its ${target.layout.items.length} devices?`,
-            )
-          )
-            return;
-        }
+        const count = d.layout.items.length;
+        if (
+          count > 0 &&
+          !confirm(`delete "${d.name}" and its ${count} devices?`)
+        )
+          return;
+        // deleting some other design leaves the rack on screen alone. only
+        // reload when the design you were editing is the one that went, since
+        // reloading clears the undo stack — losing an hour of history because
+        // you tidied up an unrelated entry is not a tidy-up.
+        const wasActive = active && active.id === d.id;
         deleteDesign(d.id);
-        reloadActive("design deleted");
+        if (wasActive) reloadActive("design deleted");
+        else say("design deleted");
         // rebuild the popover to reflect the new list
         closePopover();
         openPopover();
@@ -270,7 +285,9 @@ export function metaLine(design) {
  * switchDesign, so load it into state and re-render.
  */
 function reloadActive(toast) {
-  switchDesign(getActive().id);
+  const d = getActive();
+  if (!d) return;
+  switchDesign(d.id);
   renderDesignsBar();
   if (toast) say(toast);
 }
