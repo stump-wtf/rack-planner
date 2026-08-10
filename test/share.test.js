@@ -181,6 +181,7 @@ test('a 19" rack round-trips through a link', () => {
         icon: "▭",
         row: 0,
         col: 0,
+        fits: "19",
       },
     ],
   });
@@ -189,6 +190,44 @@ test('a 19" rack round-trips through a link', () => {
   assert.equal(chassisById(back.chassisId).width, "19");
   assert.equal(back.depthMm, 1000);
   assert.equal(back.items[0].depthMm, 750);
+  // `fits` must survive the link, or the shared copy of this rack would stop
+  // evicting its 19" gear on a switch to 10" — width eviction has to behave
+  // the same for the recipient as it does for the author
+  assert.equal(back.items[0].fits, "19");
+});
+
+test("an untagged item stays untagged through a link", () => {
+  // custom devices and pre-19" gear carry no `fits`, and the wire must not
+  // invent one — untagged means "survives every width switch", by contract
+  const wire = toWire({
+    chassisId: "8u",
+    depthMm: 260,
+    budgetW: 0,
+    items: [
+      {
+        name: "my custom thing",
+        u: 1,
+        width: "full",
+        depthMm: 100,
+        watts: 5,
+        color: "#7D56F4",
+        icon: "▪",
+        row: 0,
+        col: 0,
+      },
+    ],
+  });
+  assert.equal(fromWire(wire).items[0].fits, undefined);
+  // and a legacy 9-element wire item (minted before `fits` existed) decodes
+  // the same way rather than breaking
+  const legacy = {
+    v: 1,
+    c: "8u",
+    d: 260,
+    b: 0,
+    i: [["switch", 1, 0, 130, 10, "#4EE6FF", 0, 0, "⇄"]],
+  };
+  assert.equal(fromWire(legacy).items[0].fits, undefined);
 });
 
 test("a link naming a chassis we do not have falls back to a real one", () => {

@@ -28,6 +28,9 @@ export function serialize(item) {
       maker: item.maker,
       collection: item.collection,
       uExact: item.uExact,
+      // the rack width this device fits — without it a pasted 19" server
+      // sheds its tag and squats in a 10" rack through every width switch
+      fits: item.fits,
     })
   );
 }
@@ -64,6 +67,10 @@ export function deserialize(text) {
       ? String(raw.collection).slice(0, 32)
       : undefined,
     uExact: raw.uExact === false ? false : undefined,
+    fits:
+      typeof raw.fits === "string" && raw.fits
+        ? String(raw.fits).slice(0, 8)
+        : undefined,
   };
 }
 

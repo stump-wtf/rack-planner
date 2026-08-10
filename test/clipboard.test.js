@@ -27,6 +27,19 @@ test("a device round-trips through the clipboard", () => {
   assert.equal(got.icon, "si:raspberrypi");
 });
 
+test("the rack width a device fits is carried", () => {
+  // without it, a pasted 19" server sheds its width tag and squats in a 10"
+  // rack through every later width switch
+  const got = deserialize(serialize({ ...device, fits: "19" }));
+  assert.equal(got.fits, "19");
+});
+
+test("an untagged device stays untagged through the clipboard", () => {
+  // custom devices carry no `fits` — pasting one must not invent a width
+  const got = deserialize(serialize(device));
+  assert.equal(got.fits, undefined);
+});
+
 test("position and identity are deliberately not carried", () => {
   const got = deserialize(serialize(device));
   assert.equal(

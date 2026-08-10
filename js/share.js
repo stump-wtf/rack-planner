@@ -26,6 +26,10 @@ export function toWire(state) {
       // it still decodes (a[8] is undefined and falls back to the glyph), and
       // older code simply ignores the extra element.
       it.icon ?? "▪",
+      // index 9, same trick: the rack width this device fits ("10"/"19").
+      // 0 when untagged — a link that drops it degrades to the legacy
+      // "survives every width switch" behavior rather than breaking.
+      it.fits ?? 0,
     ]),
   };
 }
@@ -49,6 +53,10 @@ export function fromWire(w) {
       row: Number(a[6]) || 0,
       col: Number(a[7]) || 0,
       icon: a[8] ? String(a[8]).slice(0, 64) : "▪",
+      // absent on pre-19" links (and on 0-marked untagged items): the item
+      // stays width-agnostic, exactly as it was before widths existed
+      fits:
+        typeof a[9] === "string" && a[9] ? String(a[9]).slice(0, 8) : undefined,
     })),
   };
 }
