@@ -62,9 +62,11 @@ initDesignsBar({ barEl: $("designs-bar") });
 /** the size we land on when you switch widths — the one people actually own. */
 const DEFAULT_FOR_WIDTH = { 10: "8u", 19: "19-12u" };
 
-function seg(items, isOn, onPick) {
+function seg(label, items, isOn, onPick) {
   const g = document.createElement("div");
   g.className = "seg";
+  g.setAttribute("role", "group");
+  g.setAttribute("aria-label", label);
   for (const it of items) {
     const b = document.createElement("button");
     b.type = "button";
@@ -84,13 +86,19 @@ function renderChassis() {
     width.id === "10" ? '10" mini rack' : '19" rack';
   $("chassis").replaceChildren(
     seg(
+      "rack width",
       RACK_WIDTHS,
       (w) => w.id === current.width,
-      (w) => switchChassis(DEFAULT_FOR_WIDTH[w.id]),
+      // the pressed width button is a state indicator, not a shortcut to that
+      // width's default size — clicking it must not move a 42u user to 12u
+      (w) => {
+        if (w.id !== current.width) switchChassis(DEFAULT_FOR_WIDTH[w.id]);
+      },
     ),
     // only the sizes for the width you are on — 8 buttons in one row is a
     // soup, and nobody is comparing a 10" 4u against a 42u floor rack
     seg(
+      "rack size",
       chassisFor(current.width).map((c) => ({
         ...c,
         title: c.note ? `${c.u}u · ${c.note} · ${c.depthMm}mm deep` : null,
@@ -108,26 +116,29 @@ function renderChassis() {
  *
  * Changing WIDTH orphans differently: a 10" printed pi mount does not belong in
  * a 19" rack no matter how much room is left. Those go too, and are named in
- * the same toast. Items with no `fits` predate the 19" work — they come from an
- * older share link or a saved design, and are left alone rather than
- * second-guessed.
+ * the same toast. Items with no `fits` are width-agnostic by contract — they
+ * predate the 19" work (an old share link) or the user defined them — and are
+ * left alone rather than second-guessed.
  */
 function switchChassis(id) {
   if (id === state.chassisId) return;
   const next = chassisById(id);
+  const prev = chassisById(state.chassisId);
   const rows = rowsFor(next.u);
-  const widthChanged = next.width !== chassisById(state.chassisId).width;
+  const widthChanged = next.width !== prev.width;
   commit((s) => {
     s.chassisId = id;
-    // picking a rack tells you its depth — a 6u wall cabinet really is
-    // shallower than a 42u floor rack. All three 10" sizes share 260mm, so
-    // this is a no-op for anyone who never leaves 10".
-    s.depthMm = next.depthMm;
+    // picking a different cabinet tells you its depth — a 6u wall cabinet
+    // really is shallower than a 42u floor rack. But when the two chassis
+    // share a depth (all three 10" sizes are 260mm), a user-chosen preset
+    // like the t1's 198mm survives the size switch rather than being reset.
+    if (widthChanged || next.depthMm !== prev.depthMm) s.depthMm = next.depthMm;
     const kept = [];
     const evicted = [];
+    const wrongWidth = [];
     for (const it of s.items) {
       if (it.fits && it.fits !== next.width) {
-        evicted.push(it);
+        wrongWidth.push(it);
         continue;
       }
       const rect = rectOf(it);
@@ -146,12 +157,18 @@ function switchChassis(id) {
     }
     s.items = kept;
     if (!kept.some((i) => i.id === s.selectedId)) s.selectedId = null;
-    if (evicted.length) {
-      const names = evicted.map((e) => e.name).join(", ");
-      const why = widthChanged
-        ? `${widthById(next.width).label} racks do not take`
-        : `no room in ${next.label} for`;
-      queueMicrotask(() => say(`${why} ${names} — cmd+z to put it back`));
+    if (wrongWidth.length || evicted.length) {
+      // each device is named under the reason IT was evicted — a width switch
+      // can also squeeze out width-agnostic gear that simply no longer fits
+      const names = (list) => list.map((e) => e.name).join(", ");
+      const parts = [];
+      if (wrongWidth.length)
+        parts.push(
+          `${widthById(next.width).label} racks do not take ${names(wrongWidth)}`,
+        );
+      if (evicted.length)
+        parts.push(`no room in ${next.label} for ${names(evicted)}`);
+      queueMicrotask(() => say(`${parts.join("; ")} — cmd+z to put it back`));
     }
   });
 }
@@ -236,7 +253,9 @@ $("png").addEventListener("click", async () => {
 });
 
 function filename(ext) {
-  return `rack-${chassisById(state.chassisId).label}-${state.items.length}dev.${ext}`;
+  // the id, not the label: a 10" 12u and a 19" 19-12u share the label "12u",
+  // and two different racks must not export to the same filename
+  return `rack-${chassisById(state.chassisId).id}-${state.items.length}dev.${ext}`;
 }
 
 // ── keyboard ───────────────────────────────────────────────────────────────
@@ -312,6 +331,13 @@ document.addEventListener("paste", (ev) => {
   const def = deserialize(ev.clipboardData.getData("text/plain"));
   if (!def) return; // not one of ours; leave the paste alone
   ev.preventDefault();
+  // the palette never offers wrong-width gear, and paste must not be the
+  // side door around that — a 19" server has no place in a 10" rack
+  const width = chassisById(state.chassisId).width;
+  if (def.fits && def.fits !== width)
+    return say(
+      `${def.name} is ${widthById(def.fits).label} gear — this is a ${widthById(width).label} rack`,
+    );
   if (!addFromCatalog(def)) say("no room to paste that");
   else say(`pasted ${def.name}`);
 });

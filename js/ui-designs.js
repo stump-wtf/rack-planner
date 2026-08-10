@@ -9,7 +9,7 @@
 
 import { el, say } from "./ui-panels.js";
 import { switchDesign } from "./state.js";
-import { chassisById } from "./model.js";
+import { chassisById, widthById } from "./model.js";
 import {
   loadLibrary,
   getActive,
@@ -269,15 +269,18 @@ function buildPopover() {
 }
 
 /**
- * the meta line for a design row: chassis size and device count, e.g.
- * "8u · 6 devices". exported so tests can cover it without a DOM.
+ * the meta line for a design row: chassis size, width and device count, e.g.
+ * "8u · 10" · 6 devices". the width matters: a 10" 12u and a 19" 12u would
+ * otherwise be indistinguishable in the popover — including in the delete
+ * confirm, where picking the wrong one is unrecoverable. exported so tests
+ * can cover it without a DOM.
  */
 export function metaLine(design) {
   if (!design) return "";
   const chassis = chassisById(design.layout.chassisId);
   const count = design.layout.items.length;
   const devWord = count === 1 ? "device" : "devices";
-  return `${chassis.u}u · ${count} ${devWord}`;
+  return `${chassis.u}u · ${widthById(chassis.width).label} · ${count} ${devWord}`;
 }
 
 /**

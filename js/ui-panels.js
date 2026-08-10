@@ -407,18 +407,31 @@ function buildInspector() {
   kids.push(stat("devices", String(state.items.length)));
 
   kids.push(el("label", { text: "usable depth (mm)" }));
+  const presets = depthPresetsFor(chassis.width);
+  const depthOpts = presets.map((p) =>
+    el("option", {
+      value: String(p.mm),
+      text: p.label,
+      selected: p.mm === state.depthMm ? "" : null,
+    }),
+  );
+  // a depth that matches no preset (an old or hand-edited link) still has to
+  // show truthfully — otherwise the select displays the first preset while
+  // the too-deep warnings are computed against a number the UI never shows
+  if (!presets.some((p) => p.mm === state.depthMm))
+    depthOpts.push(
+      el("option", {
+        value: String(state.depthMm),
+        text: `custom · ${state.depthMm}mm`,
+        selected: "",
+      }),
+    );
   const depthSel = el(
     "select",
     {
       onchange: (ev) => commit((s) => (s.depthMm = Number(ev.target.value))),
     },
-    depthPresetsFor(chassisById(state.chassisId).width).map((p) =>
-      el("option", {
-        value: String(p.mm),
-        text: p.label,
-        selected: p.mm === state.depthMm ? "" : null,
-      }),
-    ),
+    depthOpts,
   );
   kids.push(depthSel);
 

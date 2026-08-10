@@ -167,7 +167,11 @@ export function loadSaved() {
 /** replace everything — used by share-link load and json import. */
 export function loadLayout(layout) {
   commit((s) => {
-    s.chassisId = layout.chassisId ?? DEFAULTS.chassisId;
+    // resolve through chassisById so an unknown id from a foreign link is
+    // normalized to the real fallback chassis rather than squatting in state,
+    // where it would leave no size button pressed and ride into re-shared
+    // links and the saved design
+    s.chassisId = chassisById(layout.chassisId ?? DEFAULTS.chassisId).id;
     s.depthMm = Number(layout.depthMm) || DEFAULTS.depthMm;
     s.budgetW = Number(layout.budgetW) || 0;
     s.items = layout.items.map((i) => ({ ...i, id: i.id || nextId() }));

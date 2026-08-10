@@ -25,7 +25,7 @@ test("metaLine shows chassis size and device count", () => {
       items: [{ id: "a" }, { id: "b" }, { id: "c" }],
     },
   });
-  assert.equal(metaLine(d), "8u · 3 devices");
+  assert.equal(metaLine(d), '8u · 10" · 3 devices');
 });
 
 test("metaLine uses singular 'device' when there is exactly one", () => {
@@ -37,12 +37,23 @@ test("metaLine uses singular 'device' when there is exactly one", () => {
       items: [{ id: "a" }],
     },
   });
-  assert.equal(metaLine(d), "4u · 1 device");
+  assert.equal(metaLine(d), '4u · 10" · 1 device');
 });
 
 test("metaLine shows zero devices for an empty rack", () => {
   const d = design();
-  assert.equal(metaLine(d), "8u · 0 devices");
+  assert.equal(metaLine(d), '8u · 10" · 0 devices');
+});
+
+test('metaLine tells a 10" 12u apart from a 19" 12u', () => {
+  const at = (chassisId) =>
+    metaLine(
+      design({ layout: { chassisId, depthMm: 520, budgetW: 0, items: [] } }),
+    );
+  // both chassis share the label "12u"; the width is the only thing keeping
+  // two designs distinguishable in the popover (and its delete confirm)
+  assert.notEqual(at("12u"), at("19-12u"));
+  assert.equal(at("19-12u"), '12u · 19" · 0 devices');
 });
 
 test("metaLine returns empty string for a null design", () => {

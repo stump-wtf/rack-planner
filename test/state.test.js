@@ -139,3 +139,12 @@ test("a layout missing a budget loads as zero, not undefined", () => {
   assert.equal(state.depthMm, 198);
   assert.equal(derived().budgetW, 0);
 });
+
+test("a layout naming an unknown chassis loads as the fallback, not verbatim", () => {
+  // the bogus id must not squat in state: it would leave no size button
+  // pressed, ride into the autosaved design, and be re-encoded into the next
+  // share link — normalizing at load stops the propagation
+  reset();
+  loadLayout({ chassisId: "48u-mainframe", depthMm: 260, items: [] });
+  assert.equal(state.chassisId, "8u");
+});
