@@ -21,10 +21,14 @@ export function widthById(id) {
 }
 
 /**
- * chassis sizes. the rackmate t2 family is 260mm deep; the shallower t1
- * (~198mm) is offered as a depth preset rather than a separate chassis, since
- * the only thing that actually differs for planning is how deep a device can be.
+ * How much wider a rack of this width draws than the 10" reference. Both the
+ * on-screen elevation (ui-rack) and the svg export scale off this one ratio,
+ * so the two renderings cannot drift apart on proportions.
  */
+export function panelScale(widthId) {
+  return widthById(widthId).panelMm / RACK_WIDTHS[0].panelMm;
+}
+
 /**
  * Chassis sizes, per width.
  *

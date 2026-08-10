@@ -11,7 +11,7 @@ import {
   colSpanFor,
   COLS,
 } from "./grid.js";
-import { chassisById, widthById } from "./model.js";
+import { chassisById, panelScale } from "./model.js";
 import {
   state,
   commit,
@@ -240,7 +240,7 @@ export function render() {
   // a 19" 42u should not draw the same shape as a 10" 4u
   rackEl.style.setProperty(
     "--rack-w",
-    `${Math.round(440 * (widthById(chassis.width).panelMm / widthById("10").panelMm))}px`,
+    `${Math.round(440 * panelScale(chassis.width))}px`,
   );
   renderPower(d);
 

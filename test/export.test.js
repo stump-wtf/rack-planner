@@ -87,6 +87,21 @@ test("the canvas grows with the rack", () => {
   assert.equal(h12 - h4, 8 * 46, "exactly eight more U of rack");
 });
 
+test('a 19" rack exports wider than a 10" one, and says so', () => {
+  const svg19 = toSvg(rack({ chassisId: "19-12u", items: [] }));
+  const svg10 = toSvg(rack({ chassisId: "12u", items: [] }));
+  const widthOf = (svg) => Number(/width="(\d+)"/.exec(svg)[1]);
+  assert.ok(
+    widthOf(svg19) > widthOf(svg10),
+    'same u, but the 19" canvas must be wider',
+  );
+  // 430px is the 10" elevation; 19" scales by panel width, 482.6/254
+  assert.match(svg19, /width="817"/, 'the 19" rack body is 817px');
+  // the sub line names the width — esc() turns the inch mark into &quot;
+  assert.ok(svg19.includes("19&quot;"));
+  assert.ok(svg10.includes("10&quot;"));
+});
+
 test("device names cannot inject markup", () => {
   const svg = toSvg(
     rack({

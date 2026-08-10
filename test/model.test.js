@@ -17,6 +17,7 @@ import {
   RACK_WIDTHS,
   chassisFor,
   catalogFor,
+  panelScale,
 } from "../js/model.js";
 import { rowsFor, rowSpanFor, colSpanFor } from "../js/grid.js";
 
@@ -56,6 +57,14 @@ test('the 19" sizes cover wall, frame, rolling and full height', () => {
 test('19" chassis ids are namespaced, so they cannot collide with the 10" ones', () => {
   for (const c of chassisFor("19")) assert.match(c.id, /^19-/);
   assert.equal(CHASSIS.length, new Set(CHASSIS.map((c) => c.id)).size);
+});
+
+test("panelScale is the one ratio both renderers share", () => {
+  // ui-rack (440px base) and export (430px base) both scale off this; if it
+  // drifts, the screen and the exported svg stop agreeing on proportions
+  assert.equal(panelScale("10"), 1);
+  assert.equal(panelScale("19"), 482.6 / 254);
+  assert.equal(panelScale("nonsense"), 1, 'unknown widths fall back to 10"');
 });
 
 test("chassisById falls back rather than returning undefined", () => {

@@ -4,16 +4,22 @@
 // never drift from what is on screen. no image library: png is the svg through
 // a canvas.
 
-import { chassisById, heightMm, powerOf, widthById } from "./model.js";
+import {
+  chassisById,
+  heightMm,
+  panelScale,
+  powerOf,
+  widthById,
+} from "./model.js";
 import { rowSpanFor, colSpanFor } from "./grid.js";
 
 const PAD = 18;
 const LABEL_W = 30;
-// the 10" elevation is 430px, and every other width is scaled off its panel so
-// a 19" rack draws as wide as it really is relative to its height
+// the 10" elevation is 430px, and every other width is scaled off its panel
+// (model.panelScale, shared with the on-screen elevation) so a 19" rack draws
+// as wide as it really is relative to its height
 const RACK_W_10 = 430;
-const rackWidthPx = (width) =>
-  Math.round(RACK_W_10 * (width.panelMm / widthById("10").panelMm));
+const rackWidthPx = (width) => Math.round(RACK_W_10 * panelScale(width.id));
 const U_H = 46;
 const HEAD = 46;
 const FOOT = 26;
