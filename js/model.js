@@ -2,29 +2,116 @@
 
 /** 1U = 1.75in. the number everything else hangs off. */
 export const U_MM = 44.45;
-/** 10" rack front panel width. */
-export const PANEL_MM = 254;
-/** rail-to-rail mounting width inside a 10" rack. */
-export const RAIL_MM = 230;
+
+/**
+ * Rack widths.
+ *
+ * The planner was 10"-only, and PANEL_MM / RAIL_MM were constants nothing ever
+ * read — width was a label. It is a real dimension now: it selects the chassis
+ * sizes, the depth presets and which catalog gear will physically fit. Height
+ * is unaffected, since 1U is 44.45mm in every rack ever made.
+ */
+export const RACK_WIDTHS = [
+  { id: "10", label: '10"', panelMm: 254, railMm: 230 },
+  { id: "19", label: '19"', panelMm: 482.6, railMm: 450 },
+];
+
+export function widthById(id) {
+  return RACK_WIDTHS.find((w) => w.id === id) ?? RACK_WIDTHS[0];
+}
 
 /**
  * chassis sizes. the rackmate t2 family is 260mm deep; the shallower t1
  * (~198mm) is offered as a depth preset rather than a separate chassis, since
  * the only thing that actually differs for planning is how deep a device can be.
  */
+/**
+ * Chassis sizes, per width.
+ *
+ * The three 10" ids predate the 19" work and are load-bearing: they travel in
+ * share links, so they can never be renamed. The 19" ids are namespaced for
+ * the same reason — a bare "12u" already means the 10" one, forever.
+ *
+ * The 19" set is the shape of what homelabs actually run: two wall cabinets,
+ * an open frame, a rolling half-height and the full-height floor rack. 42u is
+ * the one people photograph; 12u wall is the one people own.
+ */
 export const CHASSIS = [
-  { id: "4u", label: "4u", u: 4, depthMm: 260 },
-  { id: "8u", label: "8u", u: 8, depthMm: 260 },
-  { id: "12u", label: "12u", u: 12, depthMm: 260 },
+  { id: "4u", label: "4u", u: 4, width: "10", depthMm: 260 },
+  { id: "8u", label: "8u", u: 8, width: "10", depthMm: 260 },
+  { id: "12u", label: "12u", u: 12, width: "10", depthMm: 260 },
+
+  { id: "19-6u", label: "6u", u: 6, width: "19", depthMm: 450, note: "wall" },
+  {
+    id: "19-12u",
+    label: "12u",
+    u: 12,
+    width: "19",
+    depthMm: 520,
+    note: "wall",
+  },
+  {
+    id: "19-18u",
+    label: "18u",
+    u: 18,
+    width: "19",
+    depthMm: 600,
+    note: "open frame",
+  },
+  {
+    id: "19-27u",
+    label: "27u",
+    u: 27,
+    width: "19",
+    depthMm: 800,
+    note: "rolling",
+  },
+  {
+    id: "19-42u",
+    label: "42u",
+    u: 42,
+    width: "19",
+    depthMm: 1000,
+    note: "full height",
+  },
 ];
 
-export const DEPTH_PRESETS = [
-  { label: "t2 / t1 plus · 260mm", mm: 260 },
-  { label: "t1 · 198mm", mm: 198 },
-];
+/** the chassis a link falls back to when it names one we do not have. */
+const DEFAULT_CHASSIS = "8u";
 
 export function chassisById(id) {
-  return CHASSIS.find((c) => c.id === id) ?? CHASSIS[1];
+  return (
+    CHASSIS.find((c) => c.id === id) ??
+    CHASSIS.find((c) => c.id === DEFAULT_CHASSIS)
+  );
+}
+
+export function chassisFor(widthId) {
+  return CHASSIS.filter((c) => c.width === widthId);
+}
+
+/**
+ * Usable depth, per width. This is the dimension that actually bites: a 750mm
+ * server does not go in a 450mm switch-depth wall cabinet, and that mismatch is
+ * the mistake this planner exists to catch.
+ */
+const DEPTHS = {
+  10: [
+    { label: "t2 / t1 plus · 260mm", mm: 260 },
+    { label: "t1 · 198mm", mm: 198 },
+  ],
+  19: [
+    { label: "low-profile wall · 300mm", mm: 300 },
+    { label: "switch-depth wall · 450mm", mm: 450 },
+    { label: "deep wall · 520mm", mm: 520 },
+    { label: "rolling · 600mm", mm: 600 },
+    { label: "rolling deep · 800mm", mm: 800 },
+    { label: "full-depth server · 1000mm", mm: 1000 },
+  ],
+};
+
+export function depthPresetsFor(widthId) {
+  return DEPTHS[widthId] ?? DEPTHS[10];
 }
 
 // palette lifted from the stump·wtf theme tokens so the elevation reads as
@@ -387,7 +474,71 @@ export const PRINTS = PRINT_ROWS.map(
   }),
 );
 
-export const CATALOG = [...STOCK, ...PRINTS];
+// ── 19" gear ───────────────────────────────────────────────────────────────
+//
+// A starter set, not a pretence at a full catalog: the things that actually go
+// in a homelab rack, at depths that make the too-deep warning mean something.
+// Full-width by default — at 19" a half-width bay is a real 9.5", which most of
+// this gear is not.
+//
+// prettier-ignore
+const STOCK_19_ROWS = [
+  // id · name · u · width · depthMm · watts · color · cat · icon
+  ['r-1u-server',   '1u server',            1,   'full', 750, 200, '#7D56F4', 'compute', '▭'],
+  ['r-2u-server',   '2u server',            2,   'full', 750, 350, '#7D56F4', 'compute', '▭'],
+  ['r-4u-server',   '4u server / storage',  4,   'full', 700, 400, '#C8A2FF', 'compute', '▦'],
+  ['r-nas-4bay',    '4-bay nas',            2,   'full', 550,  60, '#C8A2FF', 'compute', '▦'],
+  ['r-disk-shelf',  '12-bay disk shelf',    2,   'full', 600, 200, '#C8A2FF', 'compute', '▦'],
+  ['r-mini-shelf',  '1u shelf for minis',   1,   'full', 400,  90, '#7D56F4', 'compute', '▤'],
+
+  ['r-switch-24',   '24-port switch',       1,   'full', 300,  40, '#4EE6FF', 'network', '⇄'],
+  ['r-switch-48',   '48-port switch',       1,   'full', 400,  80, '#4EE6FF', 'network', '⇄'],
+  ['r-switch-poe',  '24-port poe switch',   1,   'full', 400, 250, '#4EE6FF', 'network', '⇄'],
+  ['r-patch-24',    '24-port patch panel',  1,   'full',  80,   0, '#4EE6FF', 'network', '⋮⋮'],
+  ['r-patch-48',    '48-port patch panel',  2,   'full',  80,   0, '#4EE6FF', 'network', '⋮⋮'],
+  ['r-firewall',    'rackmount firewall',   1,   'full', 400,  35, '#4EE6FF', 'network', '⌁'],
+
+  ['r-ups-1500',    'ups 1500va',           2,   'full', 600,   0, '#FFC64B', 'power',   '▣'],
+  ['r-ups-3000',    'ups 3000va',           3,   'full', 700,   0, '#FFC64B', 'power',   '▣'],
+  ['r-pdu',         'rackmount pdu',        1,   'full', 100,   0, '#FFC64B', 'power',   '⚡'],
+  ['r-pdu-vert',    'vertical pdu (0u)',    1,   'full',  60,   0, '#FFC64B', 'power',   '⚡'],
+
+  ['r-blank-1u',    'blank panel',          1,   'full',  10,   0, '#5B5B84', 'passive', '─'],
+  ['r-blank-2u',    'blank panel 2u',       2,   'full',  10,   0, '#5B5B84', 'passive', '─'],
+  ['r-shelf',       'rack shelf',           1,   'full', 450,   0, '#5B5B84', 'passive', '▤'],
+  ['r-shelf-deep',  'deep rack shelf',      2,   'full', 700,   0, '#5B5B84', 'passive', '▤'],
+  ['r-fan-panel',   'fan panel',            1,   'full', 120,  15, '#FF6E5E', 'passive', '✳'],
+  ['r-cable-1u',    'cable manager',        1,   'full',  80,   0, '#5B5B84', 'passive', '≋'],
+];
+
+const STOCK_19 = STOCK_19_ROWS.map(
+  ([id, name, u, width, depthMm, watts, color, cat, icon]) => ({
+    id,
+    name,
+    u,
+    width,
+    depthMm,
+    watts,
+    color,
+    cat,
+    icon,
+  }),
+);
+
+/**
+ * Every entry carries the rack width it fits. Without it the 19" chassis would
+ * have shipped a palette of 10" printed pi mounts, which is a rack you cannot
+ * build.
+ */
+export const CATALOG = [
+  ...STOCK.map((d) => ({ ...d, fits: "10" })),
+  ...PRINTS.map((d) => ({ ...d, fits: "10" })),
+  ...STOCK_19.map((d) => ({ ...d, fits: "19" })),
+];
+
+export function catalogFor(widthId) {
+  return CATALOG.filter((d) => d.fits === widthId);
+}
 
 export const CATEGORIES = [
   { id: "compute", label: "compute" },

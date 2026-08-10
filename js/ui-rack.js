@@ -11,7 +11,7 @@ import {
   colSpanFor,
   COLS,
 } from "./grid.js";
-import { chassisById } from "./model.js";
+import { chassisById, widthById } from "./model.js";
 import {
   state,
   commit,
@@ -236,6 +236,12 @@ export function render() {
   const { conflicts } = d;
 
   rackEl.style.height = `calc(${chassis.u} * var(--u-h))`;
+  // the elevation is as wide as the rack really is, relative to its height —
+  // a 19" 42u should not draw the same shape as a 10" 4u
+  rackEl.style.setProperty(
+    "--rack-w",
+    `${Math.round(440 * (widthById(chassis.width).panelMm / widthById("10").panelMm))}px`,
+  );
   renderPower(d);
 
   // ruler: U1 at the bottom (the column is reversed in css)

@@ -3,13 +3,14 @@
 // that diffing would be more code than it saves.
 
 import {
-  CATALOG,
   CATEGORIES,
   COLLECTIONS,
   SWATCHES,
-  DEPTH_PRESETS,
+  catalogFor,
   chassisById,
   collectionById,
+  depthPresetsFor,
+  widthById,
 } from "./model.js";
 import { uLabelFor } from "./grid.js";
 import { state, commit, derived, endEditRun } from "./state.js";
@@ -59,7 +60,22 @@ export function el(tag, props = {}, children = []) {
 let chipsEl;
 let query = "";
 
-/** name, maker and collection are all searchable — 46 entries needs a filter. */
+/** the width the chips currently show, so we only rebuild when it changes */
+let paletteWidth = null;
+
+/**
+ * The palette is built once at boot, but its contents depend on the rack you
+ * are on. Called from the render loop; rebuilds only when the width actually
+ * changed, since a drag commits on every pointer move and 46 chips is not free.
+ */
+export function syncPalette() {
+  const width = chassisById(state.chassisId).width;
+  if (width === paletteWidth) return;
+  paletteWidth = width;
+  if (chipsEl) renderChips();
+}
+
+/** name, maker and collection are all searchable — the catalog needs a filter. */
 export function matches(def, q) {
   if (!q) return true;
   const needle = q.trim().toLowerCase();
@@ -90,6 +106,7 @@ export function renderPalette() {
   });
   chipsEl = el("div", {});
   paletteEl.replaceChildren(search, chipsEl);
+  paletteWidth = chassisById(state.chassisId).width;
   renderChips();
 }
 
@@ -97,8 +114,12 @@ function renderChips() {
   const kids = [];
   let shown = 0;
 
+  // only gear that fits the rack you are on — a 19" rack full of 10" printed
+  // pi mounts is not a rack you can build
+  const fitting = catalogFor(chassisById(state.chassisId).width);
+
   for (const cat of CATEGORIES) {
-    const inCat = CATALOG.filter((d) => d.cat === cat.id && matches(d, query));
+    const inCat = fitting.filter((d) => d.cat === cat.id && matches(d, query));
     if (!inCat.length) continue;
     shown += inCat.length;
     kids.push(el("div", { class: "section-title", text: `❯ ${cat.label}` }));
@@ -378,7 +399,7 @@ function buildInspector() {
   const kids = [];
 
   kids.push(el("div", { class: "section-title", text: "❯ rack" }));
-  kids.push(stat("size", `${chassis.u}u · 10"`));
+  kids.push(stat("size", `${chassis.u}u · ${widthById(chassis.width).label}`));
   kids.push(stat("used", `${fmtNum(d.usedU)}u of ${chassis.u}u`));
   kids.push(
     stat("free", `${fmtNum(d.freeU)}u`, d.freeU === 0 ? "is-warn" : ""),
@@ -391,7 +412,7 @@ function buildInspector() {
     {
       onchange: (ev) => commit((s) => (s.depthMm = Number(ev.target.value))),
     },
-    DEPTH_PRESETS.map((p) =>
+    depthPresetsFor(chassisById(state.chassisId).width).map((p) =>
       el("option", {
         value: String(p.mm),
         text: p.label,

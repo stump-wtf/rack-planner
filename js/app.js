@@ -1,7 +1,7 @@
 // app.js — bootstrap. wires the dom together, owns the keyboard map, and
 // handles share/export. everything else lives in its own module.
 
-import { CHASSIS, chassisById } from "./model.js";
+import { RACK_WIDTHS, chassisById, chassisFor, widthById } from "./model.js";
 import { rowsFor, rowSpanFor, colSpanFor, isValid, firstFit } from "./grid.js";
 import {
   state,
@@ -26,6 +26,7 @@ import {
 import {
   initPanels,
   renderPalette,
+  syncPalette,
   renderInspector,
   say,
 } from "./ui-panels.js";
@@ -58,20 +59,45 @@ initDesignsBar({ barEl: $("designs-bar") });
 
 // ── chassis switcher ───────────────────────────────────────────────────────
 
+/** the size we land on when you switch widths — the one people actually own. */
+const DEFAULT_FOR_WIDTH = { 10: "8u", 19: "19-12u" };
+
+function seg(items, isOn, onPick) {
+  const g = document.createElement("div");
+  g.className = "seg";
+  for (const it of items) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = it.label;
+    if (it.title) b.title = it.title;
+    b.setAttribute("aria-pressed", isOn(it) ? "true" : "false");
+    b.addEventListener("click", () => onPick(it));
+    g.appendChild(b);
+  }
+  return g;
+}
+
 function renderChassis() {
-  const wrap = $("chassis");
-  wrap.replaceChildren(
-    ...CHASSIS.map((c) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.textContent = c.label;
-      b.setAttribute(
-        "aria-pressed",
-        c.id === state.chassisId ? "true" : "false",
-      );
-      b.addEventListener("click", () => switchChassis(c.id));
-      return b;
-    }),
+  const current = chassisById(state.chassisId);
+  const width = widthById(current.width);
+  $("rack-eyebrow").textContent =
+    width.id === "10" ? '10" mini rack' : '19" rack';
+  $("chassis").replaceChildren(
+    seg(
+      RACK_WIDTHS,
+      (w) => w.id === current.width,
+      (w) => switchChassis(DEFAULT_FOR_WIDTH[w.id]),
+    ),
+    // only the sizes for the width you are on — 8 buttons in one row is a
+    // soup, and nobody is comparing a 10" 4u against a 42u floor rack
+    seg(
+      chassisFor(current.width).map((c) => ({
+        ...c,
+        title: c.note ? `${c.u}u · ${c.note} · ${c.depthMm}mm deep` : null,
+      })),
+      (c) => c.id === state.chassisId,
+      (c) => switchChassis(c.id),
+    ),
   );
 }
 
@@ -79,15 +105,31 @@ function renderChassis() {
  * shrinking the rack can orphan devices. keep everything that still fits where
  * it is, re-seat what it can, and report anything genuinely evicted — never
  * silently vanish a device.
+ *
+ * Changing WIDTH orphans differently: a 10" printed pi mount does not belong in
+ * a 19" rack no matter how much room is left. Those go too, and are named in
+ * the same toast. Items with no `fits` predate the 19" work — they come from an
+ * older share link or a saved design, and are left alone rather than
+ * second-guessed.
  */
 function switchChassis(id) {
   if (id === state.chassisId) return;
-  const rows = rowsFor(chassisById(id).u);
+  const next = chassisById(id);
+  const rows = rowsFor(next.u);
+  const widthChanged = next.width !== chassisById(state.chassisId).width;
   commit((s) => {
     s.chassisId = id;
+    // picking a rack tells you its depth — a 6u wall cabinet really is
+    // shallower than a 42u floor rack. All three 10" sizes share 260mm, so
+    // this is a no-op for anyone who never leaves 10".
+    s.depthMm = next.depthMm;
     const kept = [];
     const evicted = [];
     for (const it of s.items) {
+      if (it.fits && it.fits !== next.width) {
+        evicted.push(it);
+        continue;
+      }
       const rect = rectOf(it);
       if (isValid(rect, rows, kept.map(rectOf))) {
         kept.push(it);
@@ -105,11 +147,11 @@ function switchChassis(id) {
     s.items = kept;
     if (!kept.some((i) => i.id === s.selectedId)) s.selectedId = null;
     if (evicted.length) {
-      queueMicrotask(() =>
-        say(
-          `no room in ${chassisById(id).label} for ${evicted.map((e) => e.name).join(", ")}`,
-        ),
-      );
+      const names = evicted.map((e) => e.name).join(", ");
+      const why = widthChanged
+        ? `${widthById(next.width).label} racks do not take`
+        : `no room in ${next.label} for`;
+      queueMicrotask(() => say(`${why} ${names} — cmd+z to put it back`));
     }
   });
 }
@@ -279,6 +321,7 @@ document.addEventListener("paste", (ev) => {
 function renderAll() {
   dropStaleHash();
   renderChassis();
+  syncPalette();
   renderDesignsBar();
   renderRack();
   renderInspector();

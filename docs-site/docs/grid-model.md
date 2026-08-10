@@ -89,4 +89,6 @@ Nothing is ever silently dropped.
 | --- | --- |
 | 1U | 44.45mm |
 | 10" panel width | 254mm |
-| rail-to-rail | ~230mm |
+| 10" rail-to-rail | ~230mm |
+| 19" panel width | 482.6mm |
+| 19" rail-to-rail | ~450mm |

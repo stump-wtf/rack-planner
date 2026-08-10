@@ -1,6 +1,6 @@
 # rack planner
 
-snap-to-grid planning for 10" mini racks — the DeskPi RackMate T-series form
+snap-to-grid planning for 10" mini racks and 19" racks — starting with the DeskPi RackMate T-series form
 factor, in 4u, 8u and 12u. drag gear in from a catalog, see what fits, and hand
 someone a link to the result.
 

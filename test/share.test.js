@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { chassisById } from "../js/model.js";
 
 import { encode, decode, toWire, fromWire, SCHEMA } from "../js/share.js";
 
@@ -141,4 +142,57 @@ test("missing optional fields fall back to sane defaults", () => {
   assert.equal(got.items[0].name, "device");
   assert.equal(got.items[0].u, 1);
   assert.equal(got.items[0].width, "full");
+});
+
+// ── rack width ─────────────────────────────────────────────────────────────
+//
+// The wire format carries the chassis id and nothing else about the rack, so
+// width rides along for free — but only while the 10" ids stay put. A link
+// minted before 19" existed says c:"8u", and it has to keep meaning the 10" 8u
+// forever.
+
+test('a link minted before 19" racks existed still opens as a 10" rack', () => {
+  const legacy = {
+    v: 1,
+    c: "8u",
+    d: 260,
+    b: 300,
+    i: [["switch", 1, 0, 130, 10, "#4EE6FF", 0, 0, "⇄"]],
+  };
+  const layout = fromWire(legacy);
+  assert.equal(layout.chassisId, "8u");
+  assert.equal(chassisById(layout.chassisId).width, "10");
+  assert.equal(chassisById(layout.chassisId).u, 8);
+});
+
+test('a 19" rack round-trips through a link', () => {
+  const wire = toWire({
+    chassisId: "19-42u",
+    depthMm: 1000,
+    budgetW: 4000,
+    items: [
+      {
+        name: "2u server",
+        u: 2,
+        width: "full",
+        depthMm: 750,
+        watts: 350,
+        color: "#7D56F4",
+        icon: "▭",
+        row: 0,
+        col: 0,
+      },
+    ],
+  });
+  const back = fromWire(wire);
+  assert.equal(back.chassisId, "19-42u");
+  assert.equal(chassisById(back.chassisId).width, "19");
+  assert.equal(back.depthMm, 1000);
+  assert.equal(back.items[0].depthMm, 750);
+});
+
+test("a link naming a chassis we do not have falls back to a real one", () => {
+  const layout = fromWire({ v: 1, c: "48u-mainframe", d: 260, b: 0, i: [] });
+  assert.ok(chassisById(layout.chassisId), "never undefined");
+  assert.equal(chassisById(layout.chassisId).id, "8u");
 });

@@ -4,12 +4,16 @@
 // never drift from what is on screen. no image library: png is the svg through
 // a canvas.
 
-import { chassisById, heightMm, powerOf } from "./model.js";
+import { chassisById, heightMm, powerOf, widthById } from "./model.js";
 import { rowSpanFor, colSpanFor } from "./grid.js";
 
 const PAD = 18;
 const LABEL_W = 30;
-const RACK_W = 430;
+// the 10" elevation is 430px, and every other width is scaled off its panel so
+// a 19" rack draws as wide as it really is relative to its height
+const RACK_W_10 = 430;
+const rackWidthPx = (width) =>
+  Math.round(RACK_W_10 * (width.panelMm / widthById("10").panelMm));
 const U_H = 46;
 const HEAD = 46;
 const FOOT = 26;
@@ -44,6 +48,8 @@ const GAUGE_COLORS = {
  */
 export function toSvg(state, { title = "rack plan", icons = new Map() } = {}) {
   const chassis = chassisById(state.chassisId);
+  const width = widthById(chassis.width);
+  const RACK_W = rackWidthPx(width);
   const rows = chassis.u * 2;
   const rackH = chassis.u * U_H;
   const w = PAD * 2 + LABEL_W + RACK_W + GAUGE_GAP + GAUGE_W + READ_W;
@@ -66,7 +72,7 @@ export function toSvg(state, { title = "rack plan", icons = new Map() } = {}) {
   const watts = state.items.reduce((n, i) => n + (Number(i.watts) || 0), 0);
   const budgetW = Math.max(0, Number(state.budgetW) || 0);
   const power = budgetW ? `${watts}w of ${budgetW}w` : `${watts}w`;
-  const sub = `${chassis.u}u · 10" · ${state.depthMm}mm deep · ${state.items.length} device${state.items.length === 1 ? "" : "s"} · ${power}`;
+  const sub = `${chassis.u}u · ${width.label} · ${state.depthMm}mm deep · ${state.items.length} device${state.items.length === 1 ? "" : "s"} · ${power}`;
   parts.push(
     `<text x="${PAD}" y="${PAD + 36}" fill="${MUTED}" font-size="11">${esc(sub)}</text>`,
   );

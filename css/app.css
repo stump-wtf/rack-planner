@@ -150,9 +150,13 @@ h3 {
 }
 .pane--stage {
   display: flex;
-  justify-content: center;
+  /* `safe` matters once a 19" rack is in play: plain centring overflows in
+     BOTH directions, so the ruler slid under the palette and its first digit
+     was unreachable. safe centring gives up and aligns to the start instead. */
+  justify-content: safe center;
   align-items: flex-start;
   padding: 24px 16px 40px;
+  overflow: auto;
 }
 
 .helpbar {
@@ -501,7 +505,8 @@ select:focus {
 .ruler {
   display: flex;
   flex-direction: column-reverse;
-  width: 26px;
+  /* 42u means two digits all the way up; 26px clipped them */
+  width: 32px;
   flex: none;
 }
 .ruler div {
@@ -517,7 +522,11 @@ select:focus {
 
 .rack {
   position: relative;
-  width: 440px;
+  /* --rack-w is set from the chassis, so a 19" rack draws as wide as it is
+     relative to its height. Capped against the viewport so the gauge never
+     lands off the right edge. */
+  width: min(var(--rack-w, 440px), calc(100vw - 620px));
+  min-width: 280px;
   background: var(--bg-inset);
   border: 1.5px solid var(--line);
   border-radius: var(--radius);
@@ -833,7 +842,7 @@ select:focus {
   /* leave room for the ruler, the gauge and the stage padding, or the gauge
      lands off the right edge and the whole stage scrolls sideways */
   .rack {
-    width: min(440px, calc(100vw - 96px));
+    width: min(var(--rack-w, 440px), calc(100vw - 96px));
   }
   /* the vertical readout is the first thing to go — the inspector says the
      same numbers, and the bar still reads at a glance */

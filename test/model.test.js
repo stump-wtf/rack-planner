@@ -14,17 +14,48 @@ import {
   COLLECTIONS,
   collectionById,
   powerOf,
+  RACK_WIDTHS,
+  chassisFor,
+  catalogFor,
 } from "../js/model.js";
 import { rowsFor, rowSpanFor, colSpanFor } from "../js/grid.js";
 
-test("the three chassis sizes joe asked for are present", () => {
+test('the three 10" sizes are present, and still a t2-family 260mm cabinet', () => {
   assert.deepEqual(
-    CHASSIS.map((c) => c.u),
+    chassisFor("10").map((c) => c.u),
     [4, 8, 12],
   );
-  for (const c of CHASSIS) {
+  for (const c of chassisFor("10")) {
     assert.equal(c.depthMm, 260, `${c.id} is a t2-family 260mm cabinet`);
   }
+});
+
+test('the 10" ids never change — they travel in share links', () => {
+  // a link minted before 19" existed carries c:"8u". Rename these and every
+  // link ever shared quietly resolves to the wrong rack.
+  assert.deepEqual(
+    chassisFor("10").map((c) => c.id),
+    ["4u", "8u", "12u"],
+  );
+});
+
+test('the 19" sizes cover wall, frame, rolling and full height', () => {
+  assert.deepEqual(
+    chassisFor("19").map((c) => c.u),
+    [6, 12, 18, 27, 42],
+  );
+  // depth is the dimension that bites, and it has to grow with the rack
+  const depths = chassisFor("19").map((c) => c.depthMm);
+  assert.deepEqual(
+    [...depths].sort((a, b) => a - b),
+    depths,
+  );
+  assert.ok(depths.at(-1) >= 1000, "a full-height rack is 1000mm deep");
+});
+
+test('19" chassis ids are namespaced, so they cannot collide with the 10" ones', () => {
+  for (const c of chassisFor("19")) assert.match(c.id, /^19-/);
+  assert.equal(CHASSIS.length, new Set(CHASSIS.map((c) => c.id)).size);
 });
 
 test("chassisById falls back rather than returning undefined", () => {
@@ -62,11 +93,35 @@ test("every catalog device is physically expressible on the grid", () => {
   }
 });
 
-test("every catalog device fits in the smallest chassis", () => {
-  const rows = rowsFor(4);
+test("every catalog device fits the smallest rack of its own width", () => {
+  // per width, not globally: a 4u 19" server has no business being measured
+  // against a 4u 10" cabinet it can never go in
+  for (const w of RACK_WIDTHS) {
+    const smallest = Math.min(...chassisFor(w.id).map((c) => c.u));
+    const rows = rowsFor(smallest);
+    for (const d of catalogFor(w.id)) {
+      assert.ok(
+        rowSpanFor(d.u) <= rows,
+        `${d.id} cannot fit a ${smallest}u ${w.label} rack`,
+      );
+      assert.ok(colSpanFor(d.width) <= 2);
+    }
+  }
+});
+
+test("every catalog device says which rack width it fits", () => {
+  const ids = RACK_WIDTHS.map((w) => w.id);
   for (const d of CATALOG) {
-    assert.ok(rowSpanFor(d.u) <= rows, `${d.id} cannot fit a 4u rack`);
-    assert.ok(colSpanFor(d.width) <= 2);
+    assert.ok(ids.includes(d.fits), `${d.id} has no rack width`);
+  }
+});
+
+test("both widths have gear in every category they claim", () => {
+  for (const w of RACK_WIDTHS) {
+    const cats = new Set(catalogFor(w.id).map((d) => d.cat));
+    for (const need of ["compute", "network", "power", "passive"]) {
+      assert.ok(cats.has(need), `${w.label} has no ${need} gear`);
+    }
   }
 });
 

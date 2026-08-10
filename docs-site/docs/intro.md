@@ -27,9 +27,9 @@ while you are still dragging.
 
 | | |
 | --- | --- |
-| **chassis** | 4u · 8u · 12u, 10" wide, depth configurable (260mm T2/T1 Plus, 198mm T1) |
+| **chassis** | 10": 4u · 8u · 12u — 19": 6u · 12u · 18u · 27u · 42u, depth configurable per width |
 | **grid** | half-U rows × two half-width bays |
-| **catalog** | 21 stock devices + 25 3D-printable parts, plus anything you define |
+| **catalog** | 21 stock 10" devices + 25 3D-printable parts + 22 19" rackmount devices, filtered to the rack you are on, plus anything you define |
 | **budgets** | power draw against a target, depth against the cabinet |
 | **output** | shareable URL, SVG, PNG |
 
@@ -65,3 +65,28 @@ exactly as written.
 | `⌘d` | duplicate |
 | `⌘z` / `⇧⌘z` | undo / redo |
 | `esc` | deselect |
+
+## 10" and 19"
+
+The planner started 10"-only and now does both. Width is a real dimension, not
+a label: it selects the chassis sizes, the depth presets and which catalog gear
+is offered.
+
+| | 10" | 19" |
+| --- | --- | --- |
+| panel | 254mm | 482.6mm |
+| sizes | 4u · 8u · 12u | 6u · 12u · 18u · 27u · 42u |
+| depths | 198–260mm | 300–1000mm |
+
+The 19" sizes are the shape of what homelabs actually run: two wall cabinets, an
+open frame, a rolling half-height, and the full-height floor rack. 42u is the one
+people photograph; 12u wall is the one people own.
+
+**Depth is the dimension that bites.** A 750mm server does not go in a 450mm
+switch-depth wall cabinet, and at 19" that mismatch is easy to make and
+expensive to discover. Set the rack depth and the planner flags anything deeper.
+
+Switching width empties the rack of gear that cannot follow — a 10" printed pi
+mount has no place in a 19" rack — and says what it removed. Cmd-Z puts it back.
+Devices you defined yourself are never assumed to be one width or the other, so
+they survive the switch.
