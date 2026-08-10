@@ -6,7 +6,7 @@
 # Tests are the CI gate (`make test`), not a Docker build stage — running them
 # here would need node in the image for no runtime benefit.
 
-FROM nginxinc/nginx-unprivileged:1.29-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
 
 # Apply Alpine security patches so the Trivy CRITICAL/HIGH gate passes
 # legitimately rather than by being waived. The 1.27-alpine base shipped
