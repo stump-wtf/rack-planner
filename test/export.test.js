@@ -196,3 +196,15 @@ test("the canvas is wide enough for the gauge and its readout", () => {
   const gx = Number(svg.match(/<rect x="(\d+)" y="\d+" width="22"/)[1]);
   assert.ok(gx + 22 < w, "the gauge must not run off the canvas");
 });
+
+test("the gauge has no quarter marks", () => {
+  // Deliberate: they were tried, and on a bar this narrow they read as stray
+  // lines through the fill rather than as a scale. The readout beside the
+  // gauge is what gives you the actual number.
+  const svg = toSvg(rack());
+  const gx = svg.match(/<rect x="(\d+)" y="\d+" width="22"/)[1];
+  const across = svg
+    .match(/<line[^>]*>/g)
+    .filter((l) => l.includes(`x1="${gx}"`));
+  assert.deepEqual(across, [], "nothing should be drawn across the gauge");
+});

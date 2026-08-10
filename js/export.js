@@ -26,7 +26,6 @@ const LINE_DIM = "#262645";
 const TEXT = "#F4F4FF";
 const MUTED = "#8888B0";
 const DIM = "#5B5B84";
-const TICK = "#8282AF";
 
 // same thresholds-to-colour mapping the stylesheet uses, so a printed plan and
 // the screen agree about when a rack is getting tight
@@ -157,16 +156,6 @@ export function toSvg(state, { title = "rack plan", icons = new Map() } = {}) {
       `<rect x="${gx}" y="${gy}" width="${GAUGE_W}" height="${rackH}" rx="4" fill="${INSET}" stroke="${LINE}" stroke-width="1.5"/>`,
     );
 
-    // quarter marks, in a mid-tone that reads against the empty track and the
-    // bright fill alike — drawn over the fill so the scale stays continuous
-    const ticks = [];
-    for (let q = 1; q <= 3; q++) {
-      const ty = gy + rackH * (q / 4);
-      ticks.push(
-        `<line x1="${gx}" y1="${ty}" x2="${gx + GAUGE_W}" y2="${ty}" stroke="${TICK}" stroke-opacity="0.5" stroke-width="1"/>`,
-      );
-    }
-
     if (p.budgetW) {
       // over budget pins at full: past 100% there is no more bar to give
       const frac = Math.min(1, p.pct / 100);
@@ -184,7 +173,6 @@ export function toSvg(state, { title = "rack plan", icons = new Map() } = {}) {
         );
       }
     }
-    parts.push(...ticks);
 
     const readout = p.budgetW ? `${p.watts}w / ${p.budgetW}w` : `${p.watts}w`;
     const rx = gx + GAUGE_W + 12;
