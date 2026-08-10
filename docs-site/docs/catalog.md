@@ -5,7 +5,9 @@ title: the catalog
 
 # the catalog
 
-46 entries: 21 stock devices you buy, and 25 parts you print.
+68 entries: 21 stock 10" devices you buy, 25 parts you print, and 22 19"
+rackmount devices. The palette is filtered to the rack you are on — a 10" rack
+offers the 46 mini-rack entries, a 19" rack the 22 rackmount ones.
 
 ## stock devices
 

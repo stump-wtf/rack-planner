@@ -64,16 +64,24 @@ export function candidateRows(rows, rowSpan) {
 
 ## depth
 
-Depth is the constraint that actually bites on a 260mm cabinet, and a front
-elevation alone will happily let you plan something that does not close. Every
-device carries a depth in mm, checked against the chassis:
+Depth is the constraint that actually bites, and a front elevation alone will
+happily let you plan something that does not close. Every device carries a
+depth in mm, checked against the chassis. The presets are per width:
 
-| chassis | usable depth |
-| --- | --- |
-| RackMate T2 · T1 Plus | 260mm |
-| RackMate T1 | 198mm |
+| width | preset | usable depth |
+| --- | --- | --- |
+| 10" | RackMate T2 · T1 Plus | 260mm |
+| 10" | RackMate T1 | 198mm |
+| 19" | low-profile wall | 300mm |
+| 19" | switch-depth wall | 450mm |
+| 19" | deep wall | 520mm |
+| 19" | rolling | 600mm |
+| 19" | rolling deep | 800mm |
+| 19" | full-depth server | 1000mm |
 
-Anything over gets named in an inspector warning.
+At 19" the mismatch is the expensive one — a 750mm server does not go in a
+450mm switch-depth wall cabinet. Anything over gets named in an inspector
+warning.
 
 ## shrinking a rack
 
