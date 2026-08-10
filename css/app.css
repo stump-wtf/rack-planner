@@ -152,7 +152,11 @@ h3 {
   display: flex;
   /* `safe` matters once a 19" rack is in play: plain centring overflows in
      BOTH directions, so the ruler slid under the palette and its first digit
-     was unreachable. safe centring gives up and aligns to the start instead. */
+     was unreachable. safe centring gives up and aligns to the start instead.
+     the plain `center` line is the fallback: engines that do not know the
+     `safe` keyword drop the whole declaration, and without the fallback they
+     would land on `normal` (start) and lose centring entirely. */
+  justify-content: center;
   justify-content: safe center;
   align-items: flex-start;
   padding: 24px 16px 40px;
@@ -216,6 +220,13 @@ h3 {
   color: var(--neon-coral);
 }
 
+/* #chassis is a plain row holding the width seg and the size seg — it must
+   not be a .seg itself, or its border and overflow wrap the two real groups
+   in a third phantom one */
+#chassis {
+  display: inline-flex;
+  gap: 8px;
+}
 .seg {
   display: inline-flex;
   border: 1px solid var(--line);
@@ -840,9 +851,12 @@ select:focus {
     border-top: 1px solid var(--line-dim);
   }
   /* leave room for the ruler, the gauge and the stage padding, or the gauge
-     lands off the right edge and the whole stage scrolls sideways */
+     lands off the right edge and the whole stage scrolls sideways. the
+     desktop min-width floor must not apply here: on a 320px phone it would
+     out-vote the cap and bring the sideways scroll right back */
   .rack {
     width: min(var(--rack-w, 440px), calc(100vw - 96px));
+    min-width: 0;
   }
   /* the vertical readout is the first thing to go — the inspector says the
      same numbers, and the bar still reads at a glance */
