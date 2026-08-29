@@ -52,7 +52,7 @@ jobs:
 
       - name: Deploy to Gitea Pages
         if: ${{ env.PAGES_KEY != '' }}
-        uses: https://gitea.stump.rocks/stumpcloud/garage-pages-deploy@v1
+        uses: https://gitea.stump.rocks/stumpcloud/garage-pages-deploy@v2
         with:
           source_dir: docs-site/build
           access_key_id: ${{ secrets.PAGES_ACCESS_KEY_ID }}
